@@ -4,11 +4,11 @@ from contextlib import contextmanager
 from collections.abc import Iterator
 from dataclasses import replace
 
-from hexgent.loop import agent_turn
-from hexgent.prompt import TOOLS
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.tool.tool_registry import TOOL_REGISTRY
-from hexgent.tool.tool_result import ToolHandlerResult
+from mindweave_harness.loop import agent_turn
+from mindweave_harness.prompt import TOOLS
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.tool.tool_registry import TOOL_REGISTRY
+from mindweave_harness.tool.tool_result import ToolHandlerResult
 
 from .specifications import TaskSpecification
 

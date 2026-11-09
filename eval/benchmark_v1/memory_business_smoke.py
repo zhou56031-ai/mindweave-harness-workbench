@@ -28,8 +28,8 @@ def main():
         args.root.mkdir(parents=True,exist_ok=False);write_json(args.root/'contract.json',contract)
         result={'protocol_status':'BLOCKED','task_status':'INCONCLUSIVE','scenario_triggered':False,'reason':'Production MemoryStore only workdir scope; no trusted userId/workspaceId namespace; no identity routing added','real_provider_requests':0}
         dump(args.root/'protocol-result.json',result)
-        source=Path(__file__).resolve().parents[2]/'hexgent/memory/memory_store.py'
-        dump(args.root/'memory-scope-audit.json',{'source':str(source),'sha256':sha256(source.read_bytes()).hexdigest(),'verified_scope':'workdir/.hexgent/memory','trusted_identity_namespace':'NOT_IMPLEMENTED'})
+        source=Path(__file__).resolve().parents[2]/'mindweave_harness/memory/memory_store.py'
+        dump(args.root/'memory-scope-audit.json',{'source':str(source),'sha256':sha256(source.read_bytes()).hexdigest(),'verified_scope':'workdir/.mindweave_harness/memory','trusted_identity_namespace':'NOT_IMPLEMENTED'})
         write_json(args.root/'verifier-result.json',VerifierResult(schema_version=1,suite_id=contract.suite_id,case_id=contract.case_id,trial_id=args.trial_id,status='INCONCLUSIVE',failure_category='missing_evidence',verifier_version='1',assertions=(AssertionResult(assertion_id='trusted_identity_scope',category='trace',status='MISSING',evidence=(ArtifactReference(path='memory-scope-audit.json'),),detail='可信业务身份隔离缺失；未创建 Session 或调用模型'),)))
         print(json.dumps(result));return
     provider={k:v for k,v in dotenv_values(args.provider_env_file).items() if k in {'OPENAI_API_KEY','OPENAI_BASE_URL','MODEL_ID'}}
@@ -66,16 +66,16 @@ def main():
         sessions=[s['session_id'] for s in stages];injections=[];history=[]
         for sid,rows in records(env):
             if sid==sessions[1]:history=[r['payload'] for r in rows if r['type']=='context_user_query_appended']
-            path=env.workdir/'.hexgent/sessions'/sid/'observation.jsonl'
+            path=env.workdir/'.mindweave_harness/sessions'/sid/'observation.jsonl'
             if path.exists():
                 for line in path.read_text().splitlines():
                     row=json.loads(line)
                     if row['event']=='memory_injected':injections.append({'session_id':sid,'sequence':row['sequence'],'memories':row['memories']})
-        from hexgent.memory.memory_store import MemoryStore
+        from mindweave_harness.memory.memory_store import MemoryStore
         memory=MemoryStore(env.workdir)
         items=[asdict(m) for m in memory.items]
         dump(root/'memory-authority.json',{'items':items});dump(root/'memory-injections.json',injections)
-        shutil.copytree(env.workdir/'.hexgent/memory',root/'memory',dirs_exist_ok=True)
+        shutil.copytree(env.workdir/'.mindweave_harness/memory',root/'memory',dirs_exist_ok=True)
         manifest,trace=archive_manifest(root,env.workdir,contract,args.trial_id,run_config)
         manifest=manifest.model_copy(update={'code_versions':{**manifest.code_versions,'runtime_image_commit':metadata['runtime']['commit'],'workspace_image_commit':metadata['workspace']['commit'],'memory_smoke_sha256':sha256(Path(__file__).read_bytes()).hexdigest()}})
         e={'suite_id':contract.suite_id,'case_id':contract.case_id,'trial_id':args.trial_id,'contract_sha256':contract.digest(),'initial':initial,'current':current,'versions':independent['versions'],'mutations':independent['mutations'],'calls':trace['calls'],'sessions':sessions,'memory_items':items,'memory_injections':injections,'direct_history_injection':len(history)!=1 or contract.user_query in json.dumps(history,ensure_ascii=False),'stages':stages}

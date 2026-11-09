@@ -12,23 +12,23 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
-from hexgent.adapters.web.app import create_app
-from hexgent.adapters.web.event_serializer import agent_event_payload, serialize_agent_event
-from hexgent.adapters.web.run_manager import RunManager
-from hexgent.adapters.web.session_projection import transcript_messages
-from hexgent.adapters.web.settings import WebSettings
-from hexgent.config import HexgentConfig
-from hexgent.events import AgentEvent, AgentLoopResult, RunFinishedEvent, TextDeltaEvent
-from hexgent.plan import InMemoryPlanStore, Plan, PlanStep
-from hexgent.run_control import RunControl
-from hexgent.session import Session, SessionSettings
-from hexgent.tool.tool_permission_pipeline import UserConfirmationResult
+from mindweave_harness.adapters.web.app import create_app
+from mindweave_harness.adapters.web.event_serializer import agent_event_payload, serialize_agent_event
+from mindweave_harness.adapters.web.run_manager import RunManager
+from mindweave_harness.adapters.web.session_projection import transcript_messages
+from mindweave_harness.adapters.web.settings import WebSettings
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.events import AgentEvent, AgentLoopResult, RunFinishedEvent, TextDeltaEvent
+from mindweave_harness.plan import InMemoryPlanStore, Plan, PlanStep
+from mindweave_harness.run_control import RunControl
+from mindweave_harness.session import Session, SessionSettings
+from mindweave_harness.tool.tool_permission_pipeline import UserConfirmationResult
 
 
 class FakeAgentEngine:
     """可控地模拟同步 AgentEngine 事件流。"""
 
-    def __init__(self, config: HexgentConfig, workdir: Path) -> None:
+    def __init__(self, config: MindWeaveHarnessConfig, workdir: Path) -> None:
         self.workdir = workdir
         self.session = Session(settings=SessionSettings(config.permission.default_mode))
         self.tool_context = SimpleNamespace(plan_store=InMemoryPlanStore())
@@ -80,7 +80,7 @@ class FakeEngineFactory:
     def __init__(self) -> None:
         self.engines: list[FakeAgentEngine] = []
 
-    def __call__(self, config: HexgentConfig, workdir: Path) -> FakeAgentEngine:
+    def __call__(self, config: MindWeaveHarnessConfig, workdir: Path) -> FakeAgentEngine:
         engine = FakeAgentEngine(config, workdir)
         self.engines.append(engine)
         return engine
@@ -92,7 +92,7 @@ class WebAdapterTest(unittest.TestCase):
     def setUp(self) -> None:
         self.factory = FakeEngineFactory()
         self.manager = RunManager(
-            HexgentConfig(),
+            MindWeaveHarnessConfig(),
             Path.cwd(),
             engine_factory=self.factory,
         )
@@ -415,13 +415,13 @@ class WebAdapterTest(unittest.TestCase):
         """浏览器跨域预检只能命中显式 Origin 白名单。"""
         app = create_app(
             run_manager=self.manager,
-            settings=WebSettings(("https://app.hexgent.example",)),
+            settings=WebSettings(("https://app.mindweave_harness.example",)),
         )
         with TestClient(app) as client:
             allowed = client.options(
                 "/api/sessions",
                 headers={
-                    "Origin": "https://app.hexgent.example",
+                    "Origin": "https://app.mindweave_harness.example",
                     "Access-Control-Request-Method": "POST",
                 },
             )
@@ -435,7 +435,7 @@ class WebAdapterTest(unittest.TestCase):
         self.assertEqual(allowed.status_code, 200)
         self.assertEqual(
             allowed.headers["access-control-allow-origin"],
-            "https://app.hexgent.example",
+            "https://app.mindweave_harness.example",
         )
         self.assertNotIn("access-control-allow-origin", denied.headers)
 

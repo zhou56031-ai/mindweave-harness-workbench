@@ -2,7 +2,7 @@
 
 import unittest
 
-from hexgent.run_control import RunControl, SteeringMailbox
+from mindweave_harness.run_control import RunControl, SteeringMailbox
 
 
 class RunControlTest(unittest.TestCase):

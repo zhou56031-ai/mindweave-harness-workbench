@@ -10,11 +10,11 @@
 
 ## 2. 当前可复用组件（已核对代码，尚未实现本方案）
 
-- `hexgent/agent_engine.py`：空Session、正式RunRequest.submit、Checkpoint Restore及RunRequest.continue_run。
-- `hexgent/tool/tool_registry.py`与`hexgent/prompt.py`：实际注册的read_file、glob、list_directory、write_file、edit_file，以及create_plan/update_plan；不用shell、网络、Workspace服务工具。
-- `hexgent/context/context_budget.py`：128000窗口、64000主动阈值、8000输出预留、8000安全余量、24000近期保留；128K依然不是Provider独立容量证明。
-- `hexgent/context/key_fact_extractor.py`：默认v2，独立Schema/Source/预算校验。
-- `hexgent/context/context_compaction.py`与SessionStore：完整轮次边界、候选验证、原子提交。
+- `mindweave_harness/agent_engine.py`：空Session、正式RunRequest.submit、Checkpoint Restore及RunRequest.continue_run。
+- `mindweave_harness/tool/tool_registry.py`与`mindweave_harness/prompt.py`：实际注册的read_file、glob、list_directory、write_file、edit_file，以及create_plan/update_plan；不用shell、网络、Workspace服务工具。
+- `mindweave_harness/context/context_budget.py`：128000窗口、64000主动阈值、8000输出预留、8000安全余量、24000近期保留；128K依然不是Provider独立容量证明。
+- `mindweave_harness/context/key_fact_extractor.py`：默认v2，独立Schema/Source/预算校验。
+- `mindweave_harness/context/context_compaction.py`与SessionStore：完整轮次边界、候选验证、原子提交。
 - `eval/phase5c/specifications.py / fixtures.py / artifacts.py`：可参考TaskSpecification、克隆和外部Oracle模式；原Fixture规模小，不直接复用为长任务，不修改冻结Phase5C。
 
 当前没有真正的Production Compaction.enabled开关。不得把抬高阈值当作完全关闭压缩，尤其不能漏掉reactive分支。
@@ -107,7 +107,7 @@ Builder、Token estimator、输出预留、最终请求检查、Tool/Permission�
 
 仅开放read_file、glob、list_directory、write_file、edit_file、create_plan/update_plan。实际名称/参数以当前注册表为准。
 原资料只读，只有outputs/可写，其他写入拒绝；禁用bash、网络、包安装、数据库、外部服务、Workspace capability与Memory生命周期工具。
-不同任务和分支用全新可信临时工作区。Hexgent不是OS sandbox；不把工具权限称为操作系统级隔离。
+不同任务和分支用全新可信临时工作区。MindWeave Harness不是OS sandbox；不把工具权限称为操作系统级隔离。
 权限策略两侧相同。是否能在Eval层同时限制工具可见性与实际派发必须用现有Permission Pipeline离线验证，不能只靠Prompt。
 
 ## 8. 指标、分母与失败归因

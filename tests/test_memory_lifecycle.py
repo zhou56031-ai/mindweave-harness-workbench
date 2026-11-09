@@ -13,13 +13,13 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import patch
 
-from hexgent.agent_engine import AgentEngine, RunRequest
-from hexgent.config import HexgentConfig
-from hexgent.context.context_builder import build_context_details
-from hexgent.memory import MemoryStore, MemoryRetriever
-from hexgent.loop.call_model import call_model
-from hexgent.run_control import RunControl
-from hexgent.tool.tool_execution import execute_tool_call
+from mindweave_harness.agent_engine import AgentEngine, RunRequest
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.context.context_builder import build_context_details
+from mindweave_harness.memory import MemoryStore, MemoryRetriever
+from mindweave_harness.loop.call_model import call_model
+from mindweave_harness.run_control import RunControl
+from mindweave_harness.tool.tool_execution import execute_tool_call
 from eval.support.agent_contracts import FakeModel, text_response, tool_call
 
 
@@ -112,14 +112,14 @@ class MemoryLifecycleTest(TestCase):
 
     def test_builder_rejects_previously_recalled_memory(self):
         candidates = self.recalled()
-        engine = AgentEngine(HexgentConfig(), self.root)
+        engine = AgentEngine(MindWeaveHarnessConfig(), self.root)
         self.store.invalidate(self.item.memory_id)
         built = build_context_details(engine.tool_context, relevant_memory=candidates)
         self.assertNotIn("<relevant-memory>", built.instructions)
         self.assertEqual(built.memory_receipt, ())
 
     def test_actual_request_rechecks_after_context_was_built(self):
-        engine = AgentEngine(HexgentConfig(), self.root)
+        engine = AgentEngine(MindWeaveHarnessConfig(), self.root)
         built = build_context_details(engine.tool_context, relevant_memory=self.recalled())
         self.store.delete(self.item.memory_id)
         model = FakeModel([text_response("unknown")])
@@ -128,7 +128,7 @@ class MemoryLifecycleTest(TestCase):
         self.provider_requests = model.calls
 
     def test_formal_checkpoint_restore_continue_revalidates(self):
-        engine = AgentEngine(HexgentConfig(), self.root)
+        engine = AgentEngine(MindWeaveHarnessConfig(), self.root)
         control = RunControl()
         model = FakeModel([text_response("first")])
         def pause_before_create(**kwargs):
@@ -140,7 +140,7 @@ class MemoryLifecycleTest(TestCase):
         self.assertTrue(engine.has_continuable_run)
         identity = engine.session.store.session_id
         self.store.invalidate(self.item.memory_id)
-        restored = AgentEngine.restore(HexgentConfig(), self.root, identity)
+        restored = AgentEngine.restore(MindWeaveHarnessConfig(), self.root, identity)
         next_model = FakeModel([text_response("unknown")])
         events = list(restored.run(RunRequest.continue_run(), client=SimpleNamespace(responses=next_model)))
         self.assertEqual(events[-1].result.status, "completed")
@@ -163,7 +163,7 @@ class MemoryLifecycleTest(TestCase):
         self.assertIn("supersede:OK" if len(self.store.items) else "supersede:MEMORY_NOT_FOUND", outcomes)
 
     def test_lifecycle_tools_production_pipeline_and_permission(self):
-        engine = AgentEngine(HexgentConfig(), self.root)
+        engine = AgentEngine(MindWeaveHarnessConfig(), self.root)
         args = json.dumps({"memory_id": self.item.memory_id})
         model = FakeModel([text_response(output=[tool_call("revoke", "invalidate_memory", args)]), text_response("done")])
         list(engine.run("明确撤销", client=SimpleNamespace(responses=model), user_confirmation=lambda *_: "deny"))
@@ -181,7 +181,7 @@ class MemoryLifecycleTest(TestCase):
         self.assertFalse((self.store.items_directory / (self.item.memory_id + ".md")).exists())
 
     def test_remember_cache_cannot_bypass_external_revocation(self):
-        engine = AgentEngine(HexgentConfig(), self.root)
+        engine = AgentEngine(MindWeaveHarnessConfig(), self.root)
         args = json.dumps({"content": self.item.content, "category": "project", "keywords": []})
         first = execute_tool_call("remember", args, context=engine.tool_context, call_id="first")
         self.assertEqual(first.status, "success")
@@ -204,7 +204,7 @@ class MemoryLifecycleTest(TestCase):
         self.assertEqual([m.content for m in MemoryStore(self.root).items], ["Zeta port 49273"])
 
     def test_model_retry_rechecks_revocation(self):
-        engine = AgentEngine(HexgentConfig(), self.root)
+        engine = AgentEngine(MindWeaveHarnessConfig(), self.root)
         built = build_context_details(engine.tool_context, relevant_memory=self.recalled())
         model = FakeModel([text_response("unknown")])
         original = model.create
@@ -225,15 +225,15 @@ class MemoryLifecycleTest(TestCase):
         self.provider_requests = model.calls
 
     def test_cli_and_service_use_the_same_lifecycle_tools(self):
-        from hexgent.adapters.web.run_manager import RunManager
+        from mindweave_harness.adapters.web.run_manager import RunManager
         from importlib import import_module
-        cli_module = import_module("hexgent.adapters.cli.main")
+        cli_module = import_module("mindweave_harness.adapters.cli.main")
         for adapter in ("CLI", "Service"):
             root = self.root / adapter
             item = MemoryStore(root).upsert("Zeta port 48271", "project", source="explicit").item
             model = FakeModel([text_response(output=[tool_call("delete", "delete_memory", json.dumps({"memory_id": item.memory_id}))]), text_response("done")])
             client = SimpleNamespace(responses=model)
-            with patch("hexgent.loop.agent_loop.get_client", return_value=client):
+            with patch("mindweave_harness.loop.agent_loop.get_client", return_value=client):
                 if adapter == "CLI":
                     terminal = SimpleNamespace(read_message=iter(["明确删除记忆", "exit"]).__next__,
                                                request_confirmation=lambda *_: "allow",
@@ -242,7 +242,7 @@ class MemoryLifecycleTest(TestCase):
                         cli_module.main()
                 else:
                     async def service():
-                        manager = RunManager(HexgentConfig(), root)
+                        manager = RunManager(MindWeaveHarnessConfig(), root)
                         try:
                             session = await manager.create_session("auto_approve")
                             response = await manager.start_run(session.session_id, "明确删除记忆")

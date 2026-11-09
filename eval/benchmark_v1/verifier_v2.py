@@ -63,8 +63,8 @@ def tool_scope(contract, calls):
             continue
         path = PurePosixPath(c['arguments']['path'])
         valid = valid and '..' not in path.parts and '/tool-results/' in str(path) and (
-            str(path).startswith('.hexgent/sessions/') or
-            str(path).startswith('/workdir/.hexgent/sessions/'))
+            str(path).startswith('.mindweave_harness/sessions/') or
+            str(path).startswith('/workdir/.mindweave_harness/sessions/'))
     return bool(valid)
 
 
@@ -294,7 +294,7 @@ class RemainingVerifierV2:
             if not identity_matches(inputs, e):
                 return verdict(inputs, 'INVALID', '新Revision与证据身份不一致')
             if inputs.contract.task_id == 'T05':
-                if inputs.contract.scenario_config['measurement_scope'] != 'hexgent-memory-mechanism-specific':
+                if inputs.contract.scenario_config['measurement_scope'] != 'mindweave_harness-memory-mechanism-specific':
                     return verdict(inputs, 'INVALID', 'F1仅支持明确标记的Memory机制专项')
                 values = memory_checks(inputs.contract, e)
             else:

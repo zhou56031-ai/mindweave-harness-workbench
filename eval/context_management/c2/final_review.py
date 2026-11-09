@@ -71,14 +71,14 @@ def main():
     def deny(*a,**kw):raise AssertionError('最终审查禁止网络')
     socket.socket.connect=deny;socket.socket.connect_ex=deny;socket.create_connection=deny
     frozen=BASE/'c2_prep_3';manifest=read(frozen/'smoke_manifest.json')
-    groups=[REPO/'hexgent',BASE/'c2_prep',BASE/'c2_prep_2',frozen,BASE/'c2_dispatch_guard_repair',
+    groups=[REPO/'mindweave_harness',BASE/'c2_prep',BASE/'c2_prep_2',frozen,BASE/'c2_dispatch_guard_repair',
             BASE/'runs/c1-independent-20261011T065644251729Z',S1,S2,POST,SCHEMA,*HISTORY]
     before=snapshot(groups)
     output=BASE/'c2/reviews'/('final-'+datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ'))
     output.mkdir(parents=True)
     executions=[];facts=[];efficiency=[];selected=[];accepted_calls=[];rejected_calls=[];evidence={}
-    from hexgent.context.context_compaction import COMPACTION_INSTRUCTIONS
-    from hexgent.utils.token_estimator import estimate_request_tokens
+    from mindweave_harness.context.context_compaction import COMPACTION_INSTRUCTIONS
+    from mindweave_harness.utils.token_estimator import estimate_request_tokens
     for run in [S1,S2]:
         recorded=read(run/'execution_manifest.json');top=read(run/'provider_trace.json');ledger=read(run/'budget_ledger.json')
         metrics=read(run/'token_metrics.json')['fixtures'];quality=read(run/'quality_review.json')['fixtures']

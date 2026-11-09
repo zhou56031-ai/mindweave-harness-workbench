@@ -12,13 +12,13 @@ from .fixtures import build
 from eval.context_management.c2_prep.prepare import assets, StreamRecorder
 from eval.context_management.c2_prep.catalog import CASES
 from eval.context_management.c1_independent import Gate, plain, save, hashes, response
-from hexgent.agent_engine import AgentEngine
-from hexgent.config import validate_config
-from hexgent.context.context_builder import build_context_details
-from hexgent.session.pinned_constraints import active_constraints
-from hexgent.loop.agent_turn import _available_tools_for_state
-from hexgent.loop.loop_state import LoopState
-from hexgent.utils.token_estimator import estimate_request_tokens
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.config import validate_config
+from mindweave_harness.context.context_builder import build_context_details
+from mindweave_harness.session.pinned_constraints import active_constraints
+from mindweave_harness.loop.agent_turn import _available_tools_for_state
+from mindweave_harness.loop.loop_state import LoopState
+from mindweave_harness.utils.token_estimator import estimate_request_tokens
 
 ROOT = Path(__file__).resolve().parent
 
@@ -65,7 +65,7 @@ def run_fixture(identifier, rounds, facts, output, config, latest, shared_budget
             proactive_threshold_tokens=base+250, recent_context_tokens=100, reactive_recent_context_tokens=50)))
     pre = estimate_request_tokens(instructions,engine.context_manager.materialize_messages(engine.context_manager.active_messages),request_tools)
     save(directory/'frozen-state.json',dict(config=asdict(engine.config),initial_estimated_input=pre, facts=facts))
-    with patch('hexgent.loop.agent_turn.get_model', return_value='FAKE_ONLY'):
+    with patch('mindweave_harness.loop.agent_turn.get_model', return_value='FAKE_ONLY'):
         events = list(engine.run(latest, client=trace))
     observations = [json.loads(line) for line in (engine.session.store.session_dir/'observation.jsonl').read_text().splitlines()]
     attribution = reconcile(trace,observations)

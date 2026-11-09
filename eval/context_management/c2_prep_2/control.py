@@ -9,8 +9,8 @@ from time import perf_counter
 from uuid import uuid4
 from urllib.parse import urlsplit
 
-from hexgent.observation import current_observation
-from hexgent.context.context_compaction import COMPACTION_INSTRUCTIONS
+from mindweave_harness.observation import current_observation
+from mindweave_harness.context.context_compaction import COMPACTION_INSTRUCTIONS
 from eval.context_management.c1_independent import plain, save
 
 

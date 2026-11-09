@@ -14,19 +14,19 @@ import unittest
 from unittest.mock import patch
 
 from openai.types.responses import ResponseOutputMessage, ResponseOutputText
-from hexgent import agent_loop
-from hexgent.agent_engine import AgentEngine, RunRequest
-from hexgent.config import HexgentConfig, validate_config
-from hexgent.context import ContextManager
-from hexgent.context.context_builder import build_context_details
-from hexgent.context.context_compaction import COMPACTION_INSTRUCTIONS
-from hexgent.events import ToolFinishedEvent
-from hexgent.loop.loop_state import LoopState
-from hexgent.plan import InMemoryPlanStore, Plan, PlanStep
-from hexgent.prompt import SYSTEM_PROMPT, TOOLS
-from hexgent.run_control import RunControl
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.utils.token_estimator import estimate_request_tokens, estimate_value_tokens
+from mindweave_harness import agent_loop
+from mindweave_harness.agent_engine import AgentEngine, RunRequest
+from mindweave_harness.config import MindWeaveHarnessConfig, validate_config
+from mindweave_harness.context import ContextManager
+from mindweave_harness.context.context_builder import build_context_details
+from mindweave_harness.context.context_compaction import COMPACTION_INSTRUCTIONS
+from mindweave_harness.events import ToolFinishedEvent
+from mindweave_harness.loop.loop_state import LoopState
+from mindweave_harness.plan import InMemoryPlanStore, Plan, PlanStep
+from mindweave_harness.prompt import SYSTEM_PROMPT, TOOLS
+from mindweave_harness.run_control import RunControl
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.utils.token_estimator import estimate_request_tokens, estimate_value_tokens
 from eval.support.agent_contracts import FakeModel, text_response, tool_call
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -54,7 +54,7 @@ def save(path, value):
 
 def hashes():
     return {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
-            for p in sorted((ROOT / "hexgent").rglob("*.py"))}
+            for p in sorted((ROOT / "mindweave_harness").rglob("*.py"))}
 
 
 def response(text="完成", calls=None):
@@ -102,7 +102,7 @@ class Gate:
             raise AssertionError(name)
 
     def config(self):
-        base = HexgentConfig()
+        base = MindWeaveHarnessConfig()
         return replace(base, context_extraction=replace(base.context_extraction, enabled=False),
                        context_retrieval=replace(base.context_retrieval, enabled=False),
                        memory_retrieval=replace(base.memory_retrieval, enabled=False))
@@ -137,7 +137,7 @@ class Gate:
         client = Recorder(self.e, main, summary)
         control = RunControl()
         events = []
-        with patch("hexgent.loop.agent_turn.get_model", return_value="FAKE_ONLY"):
+        with patch("mindweave_harness.loop.agent_turn.get_model", return_value="FAKE_ONLY"):
             for event in engine.run(query, client=SimpleNamespace(responses=client), run_control=control):
                 events.append(event)
                 if pause and isinstance(event, ToolFinishedEvent):
@@ -163,7 +163,7 @@ class Gate:
     def reuse(self, names):
         """重跑原测试，透明保存模型实参、预算候选和测试原有工件。"""
         from tests.test_agent_loop_limits import FakeResponses
-        from hexgent.loop import agent_turn
+        from mindweave_harness.loop import agent_turn
         captures = self.e["requests"]
         def wrapper(native):
             def create(obj, **request):
@@ -281,7 +281,7 @@ class Gate:
                 # 1. 大近期完整轮次原样保留，只有短前缀进入摘要；合法摘要使候选反而变大。
                 self.seed(engine, "旧调查" * 50)
                 self.seed(engine, "近期原始调查结果" * 150)
-                from hexgent.loop.agent_turn import _available_tools_for_state
+                from mindweave_harness.loop.agent_turn import _available_tools_for_state
                 tools = _available_tools_for_state(LoopState(engine.context_manager, engine.tool_context))
                 self.freeze_auto(engine, recent=2000, tools=tools)
                 instructions = build_context_details(engine.tool_context).instructions
@@ -403,8 +403,8 @@ class Gate:
                     estimated_input_tokens=value, output_allowance=8000, config=asdict(cfg)))
                 return value
             start = len(self.mains())
-            with patch("hexgent.loop.agent_turn.get_model", return_value="FAKE_ONLY"), patch(
-                    "hexgent.loop.agent_turn.estimate_request_tokens", side_effect=estimate):
+            with patch("mindweave_harness.loop.agent_turn.get_model", return_value="FAKE_ONLY"), patch(
+                    "mindweave_harness.loop.agent_turn.estimate_request_tokens", side_effect=estimate):
                 events = list(agent_loop(LoopState(manager, ctx), config=cfg, client=SimpleNamespace(responses=client)))
             self.e.setdefault("no_session", []).append(dict(label=label, candidates=candidates, events=plain(events),
                 provider_dispatch_count=len(self.mains())-start, transcript="NOT_APPLICABLE", checkpoint="NOT_APPLICABLE"))

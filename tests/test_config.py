@@ -1,10 +1,10 @@
-"""Hexgent TOML 运行配置加载测试。"""
+"""MindWeave Harness TOML 运行配置加载测试。"""
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from hexgent.config import ConfigError, HexgentConfig, load_config
+from mindweave_harness.config import ConfigError, MindWeaveHarnessConfig, load_config
 
 
 class ConfigTest(unittest.TestCase):
@@ -15,7 +15,7 @@ class ConfigTest(unittest.TestCase):
         with TemporaryDirectory() as directory:
             config = load_config(Path(directory))
 
-        self.assertEqual(config, HexgentConfig())
+        self.assertEqual(config, MindWeaveHarnessConfig())
 
     def test_partial_toml_overrides_only_declared_fields(self) -> None:
         """配置文件只覆盖显式字段，其余字段继续使用代码默认值。"""

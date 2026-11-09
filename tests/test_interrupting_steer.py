@@ -9,12 +9,12 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from hexgent.agent_engine import AgentEngine
-from hexgent.config import HexgentConfig
-from hexgent.loop.limits import LoopLimits
-from hexgent.loop.call_model import ModelCallInterrupted, call_model
-from hexgent.run_control import RunControl
-from hexgent.tool.tool_registry import TOOL_REGISTRY
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.loop.limits import LoopLimits
+from mindweave_harness.loop.call_model import ModelCallInterrupted, call_model
+from mindweave_harness.run_control import RunControl
+from mindweave_harness.tool.tool_registry import TOOL_REGISTRY
 
 
 def completed(text="完成", *, output=None):
@@ -73,11 +73,11 @@ class EmptyTransportFailure:
 class InterruptingSteerTests(unittest.TestCase):
     def run_gated(self, initial=(), action=None, *, config=None, prefix=()):
         with TemporaryDirectory() as directory:
-            engine = AgentEngine.create(config or HexgentConfig(), Path(directory))
+            engine = AgentEngine.create(config or MindWeaveHarnessConfig(), Path(directory))
             control = RunControl()
             stream = GatedStream(initial)
             client = Client([*prefix, stream, [completed()]])
-            with patch("hexgent.loop.agent_turn.get_model", return_value="offline"), ThreadPoolExecutor(max_workers=1) as pool:
+            with patch("mindweave_harness.loop.agent_turn.get_model", return_value="offline"), ThreadPoolExecutor(max_workers=1) as pool:
                 future = pool.submit(lambda: list(engine.run("原始任务", client=client, run_control=control)))
                 try:
                     self.assertTrue(stream.waiting.wait(5))
@@ -204,9 +204,9 @@ class InterruptingSteerTests(unittest.TestCase):
             tool = SimpleNamespace(type="function_call", name="read_file", call_id="read-1",
                                    arguments='{"path":"seed.txt"}')
             client = Client([[completed(output=[tool])], [completed()]])
-            engine = AgentEngine.create(HexgentConfig(), Path(directory))
+            engine = AgentEngine.create(MindWeaveHarnessConfig(), Path(directory))
             with patch.dict(TOOL_REGISTRY, {"read_file": replace(TOOL_REGISTRY["read_file"], function=read)}), \
-                    patch("hexgent.loop.agent_turn.get_model", return_value="offline"):
+                    patch("mindweave_harness.loop.agent_turn.get_model", return_value="offline"):
                 events = list(engine.run("读取资料", client=client, run_control=control,
                                          user_confirmation=lambda *_: "allow"))
             self.assertEqual(events[-1].result.status, "completed")
@@ -227,11 +227,11 @@ class InterruptingSteerTests(unittest.TestCase):
 
     def test_consecutive_interrupts_use_fresh_request_signals_and_keep_fifo(self):
         with TemporaryDirectory() as directory:
-            engine = AgentEngine.create(HexgentConfig(), Path(directory))
+            engine = AgentEngine.create(MindWeaveHarnessConfig(), Path(directory))
             control = RunControl()
             first, second = GatedStream(), GatedStream()
             client = Client([first, second, [completed()]])
-            with patch("hexgent.loop.agent_turn.get_model", return_value="offline"), ThreadPoolExecutor(max_workers=1) as pool:
+            with patch("mindweave_harness.loop.agent_turn.get_model", return_value="offline"), ThreadPoolExecutor(max_workers=1) as pool:
                 future = pool.submit(lambda: list(engine.run("原始任务", client=client, run_control=control)))
                 try:
                     self.assertTrue(first.waiting.wait(5))
@@ -262,7 +262,7 @@ class InterruptingSteerTests(unittest.TestCase):
             self.assertEqual(control.terminal_action, "cancel")
 
     def test_interrupted_attempt_consumes_model_round_budget(self):
-        config = replace(HexgentConfig(), loop=LoopLimits(max_model_rounds=1))
+        config = replace(MindWeaveHarnessConfig(), loop=LoopLimits(max_model_rounds=1))
         calls, records, result, _, _ = self.run_gated(config=config)
         self.assertEqual(result.stop_reason, "max_model_rounds")
         self.assertEqual(len(calls), 2)  # 第二次仅是原有预算收尾请求。

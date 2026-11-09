@@ -52,7 +52,7 @@ def main():
         "errors": len(result.errors), "skipped": len(result.skipped),
         "scenarios": result.scenarios,
         "source_sha256": {str(path.relative_to(root)): sha256(path.read_bytes()).hexdigest()
-                          for path in sorted((root / "hexgent").rglob("*.py"))},
+                          for path in sorted((root / "mindweave_harness").rglob("*.py"))},
         "real_model_smoke": "NOT_RUN",
         "limitations": ["已发送内容及历史 Transcript/摘要中的事实不被清除",
                         "仅支持受控 API 与本地文件系统；未验证断电/网络文件系统",

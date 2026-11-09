@@ -1,28 +1,28 @@
-"""HexgentConfig、AgentEngine 和 LoopState 的配置边界测试。"""
+"""MindWeaveHarnessConfig、AgentEngine 和 LoopState 的配置边界测试。"""
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
-from hexgent.agent_engine import AgentEngine, RunRequest
-from hexgent.config import ConfigError, HexgentConfig, RunOptions
-from hexgent.context import ContextLimits
-from hexgent.events import AgentLoopResult, TextDeltaEvent
-from hexgent.loop.loop_state import LoopState
-from hexgent.loop.transitions import Stop
-from hexgent.loop.limits import LoopLimits
-from hexgent.plan import Plan, PlanStep
-from hexgent.session import Session, SessionSettings
-from hexgent.tool.tool_scheduler import ToolParallelLimits
+from mindweave_harness.agent_engine import AgentEngine, RunRequest
+from mindweave_harness.config import ConfigError, MindWeaveHarnessConfig, RunOptions
+from mindweave_harness.context import ContextLimits
+from mindweave_harness.events import AgentLoopResult, TextDeltaEvent
+from mindweave_harness.loop.loop_state import LoopState
+from mindweave_harness.loop.transitions import Stop
+from mindweave_harness.loop.limits import LoopLimits
+from mindweave_harness.plan import Plan, PlanStep
+from mindweave_harness.session import Session, SessionSettings
+from mindweave_harness.tool.tool_scheduler import ToolParallelLimits
 
 
 class AgentEngineConfigTest(unittest.TestCase):
     """验证用户覆盖项只在 Engine 入口消费，LoopState 保持纯活动状态。"""
 
     def test_run_options_only_override_explicit_sections(self) -> None:
-        """RunOptions 应覆盖声明段，其余配置继续继承 HexgentConfig。"""
-        process_config = HexgentConfig(
+        """RunOptions 应覆盖声明段，其余配置继续继承 MindWeaveHarnessConfig。"""
+        process_config = MindWeaveHarnessConfig(
             loop=LoopLimits(max_model_rounds=20),
             context=ContextLimits(context_window_tokens=80_000),
         )
@@ -46,14 +46,14 @@ class AgentEngineConfigTest(unittest.TestCase):
         """Engine 应显式传递配置与依赖，并保持 LoopState 为纯活动状态。"""
         with TemporaryDirectory() as directory:
             engine = AgentEngine(
-                HexgentConfig(loop=LoopLimits(max_model_rounds=20)),
+                MindWeaveHarnessConfig(loop=LoopLimits(max_model_rounds=20)),
                 Path(directory),
                 session=Session(settings=SessionSettings("plan")),
             )
             override = LoopLimits(max_model_rounds=2)
 
             with patch(
-                "hexgent.agent_engine.agent_loop",
+                "mindweave_harness.agent_engine.agent_loop",
                 return_value=iter(()),
             ) as loop:
                 events = engine.run("检查项目", options=RunOptions(loop=override))
@@ -81,7 +81,7 @@ class AgentEngineConfigTest(unittest.TestCase):
     def test_unconsumed_stream_does_not_append_query(self) -> None:
         """只创建事件流而不消费时，不应提前修改共享 Context。"""
         with TemporaryDirectory() as directory:
-            engine = AgentEngine(HexgentConfig(), Path(directory), session=Session())
+            engine = AgentEngine(MindWeaveHarnessConfig(), Path(directory), session=Session())
             stream = engine.run("尚未开始的任务")
 
             self.assertEqual(engine.context_manager.user_queries, ())
@@ -90,9 +90,9 @@ class AgentEngineConfigTest(unittest.TestCase):
     def test_concurrent_run_is_rejected_before_appending_query(self) -> None:
         """同一 Engine 的第二个 Run 不得把 Query 注入正在执行的 Run。"""
         with TemporaryDirectory() as directory:
-            engine = AgentEngine(HexgentConfig(), Path(directory), session=Session())
+            engine = AgentEngine(MindWeaveHarnessConfig(), Path(directory), session=Session())
             with patch(
-                "hexgent.agent_engine.agent_loop",
+                "mindweave_harness.agent_engine.agent_loop",
                 return_value=iter([TextDeltaEvent("处理中")]),
             ):
                 first = engine.run("任务 A")
@@ -114,11 +114,11 @@ class AgentEngineConfigTest(unittest.TestCase):
         with TemporaryDirectory() as directory:
             with self.assertRaises(ConfigError):
                 AgentEngine(
-                    HexgentConfig(tool_parallel=invalid_parallel),
+                    MindWeaveHarnessConfig(tool_parallel=invalid_parallel),
                     Path(directory),
                 )
 
-            engine = AgentEngine(HexgentConfig(), Path(directory), session=Session())
+            engine = AgentEngine(MindWeaveHarnessConfig(), Path(directory), session=Session())
             with self.assertRaises(ConfigError):
                 engine.resolve_config(RunOptions(tool_parallel=invalid_parallel))
 
@@ -128,7 +128,7 @@ class AgentEngineConfigTest(unittest.TestCase):
     def test_cancel_pending_task_clears_retained_plan(self) -> None:
         """暂停后的业务取消应清除 Plan，但不需要伪造一个新的 Agent Run。"""
         with TemporaryDirectory() as directory:
-            engine = AgentEngine(HexgentConfig(), Path(directory), session=Session())
+            engine = AgentEngine(MindWeaveHarnessConfig(), Path(directory), session=Session())
             engine.tool_context.plan_store.set_plan(
                 Plan(
                     "旧任务",
@@ -151,7 +151,7 @@ class AgentEngineConfigTest(unittest.TestCase):
     def test_continue_reuses_checkpoint_state_without_appending_query(self) -> None:
         """continue 应继承预算状态，且不能重复写入用户 Query。"""
         with TemporaryDirectory() as directory:
-            engine = AgentEngine(HexgentConfig(), Path(directory), session=Session())
+            engine = AgentEngine(MindWeaveHarnessConfig(), Path(directory), session=Session())
             first_state = LoopState(
                 context_manager=engine.context_manager,
                 tool_context=engine.tool_context,
@@ -168,7 +168,7 @@ class AgentEngineConfigTest(unittest.TestCase):
                     state,
                 )
 
-            with patch("hexgent.agent_engine.agent_loop", side_effect=stopped_loop) as loop:
+            with patch("mindweave_harness.agent_engine.agent_loop", side_effect=stopped_loop) as loop:
                 self.assertEqual(list(engine.run(RunRequest.continue_run())), [])
 
             (restored_state,) = loop.call_args.args
@@ -180,11 +180,11 @@ class AgentEngineConfigTest(unittest.TestCase):
     def test_submit_supersedes_pending_checkpoint_run(self) -> None:
         """新 Query 必须取代旧快照，不能隐式拼接为 continue。"""
         with TemporaryDirectory() as directory:
-            engine = AgentEngine(HexgentConfig(), Path(directory), session=Session())
+            engine = AgentEngine(MindWeaveHarnessConfig(), Path(directory), session=Session())
             state = LoopState(engine.context_manager, engine.tool_context)
             engine._pending_run_state = state.to_snapshot()
 
-            with patch("hexgent.agent_engine.agent_loop", return_value=iter(())):
+            with patch("mindweave_harness.agent_engine.agent_loop", return_value=iter(())):
                 self.assertEqual(list(engine.run(RunRequest.submit("新的方向"))), [])
 
             self.assertEqual(

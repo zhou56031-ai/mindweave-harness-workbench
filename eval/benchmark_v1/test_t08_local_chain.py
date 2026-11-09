@@ -52,6 +52,6 @@ if __name__=='__main__':
  if len(sys.argv)>1 and sys.argv[1]=='child':
   sys.argv=[sys.argv[0],*sys.argv[2:]]
   client=OfflineClient()
-  with patch('hexgent.client.get_client',return_value=client),patch('hexgent.client.get_model',return_value='offline-scripted'),patch('hexgent.loop.agent_turn.get_model',return_value='offline-scripted'):
+  with patch('mindweave_harness.client.get_client',return_value=client),patch('mindweave_harness.client.get_model',return_value='offline-scripted'),patch('mindweave_harness.loop.agent_turn.get_model',return_value='offline-scripted'):
    runpy.run_module('eval.benchmark_v1.fixture_agent',run_name='__main__')
  else:unittest.main()

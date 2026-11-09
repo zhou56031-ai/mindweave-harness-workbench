@@ -10,8 +10,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Iterable
 
-from hexgent.events import AgentEvent, RunFinishedEvent
-from hexgent.integration.lifecycle import LifecycleEvent, LifecycleProjector
+from mindweave_harness.events import AgentEvent, RunFinishedEvent
+from mindweave_harness.integration.lifecycle import LifecycleEvent, LifecycleProjector
 
 
 @dataclass(frozen=True)

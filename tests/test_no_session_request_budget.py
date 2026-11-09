@@ -9,14 +9,14 @@ import os
 import unittest
 from unittest.mock import patch
 
-from hexgent import agent_loop
-from hexgent.agent_engine import AgentEngine
-from hexgent.config import HexgentConfig, validate_config
-from hexgent.context import ContextManager
-from hexgent.loop.loop_state import LoopState
-from hexgent.plan import InMemoryPlanStore
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.utils.token_estimator import estimate_request_tokens
+from mindweave_harness import agent_loop
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.config import MindWeaveHarnessConfig, validate_config
+from mindweave_harness.context import ContextManager
+from mindweave_harness.loop.loop_state import LoopState
+from mindweave_harness.plan import InMemoryPlanStore
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.utils.token_estimator import estimate_request_tokens
 from eval.support.agent_contracts import text_response
 
 
@@ -24,10 +24,10 @@ class NoSessionRequestBudgetTests(unittest.TestCase):
     """只替换模型响应，不替换Builder、预算计算或工具实现。"""
 
     def setUp(self):
-        self.temp = TemporaryDirectory(prefix="hexgent-budget-repair-")
+        self.temp = TemporaryDirectory(prefix="mindweave_harness-budget-repair-")
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        base = HexgentConfig()
+        base = MindWeaveHarnessConfig()
         self.config = replace(base,
             context=replace(base.context, reserved_output_tokens=100,
                 safety_margin_tokens=100, recent_context_tokens=500,
@@ -62,8 +62,8 @@ class NoSessionRequestBudgetTests(unittest.TestCase):
             return value
 
         client = SimpleNamespace(responses=SimpleNamespace(create=create))
-        with patch("hexgent.loop.agent_turn.get_model", return_value="FAKE_ONLY"), \
-                patch("hexgent.loop.agent_turn.estimate_request_tokens", side_effect=estimate):
+        with patch("mindweave_harness.loop.agent_turn.get_model", return_value="FAKE_ONLY"), \
+                patch("mindweave_harness.loop.agent_turn.estimate_request_tokens", side_effect=estimate):
             if with_session:
                 engine = AgentEngine(cfg, self.root)
                 events = list(engine.run(query, client=client))

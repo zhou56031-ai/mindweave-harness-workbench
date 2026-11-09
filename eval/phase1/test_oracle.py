@@ -2,8 +2,8 @@
 
 import unittest
 
-from hexgent.events import RunFinishedEvent, TextDeltaEvent
-from hexgent.events import AgentLoopResult
+from mindweave_harness.events import RunFinishedEvent, TextDeltaEvent
+from mindweave_harness.events import AgentLoopResult
 
 from eval.phase1.observation import RuntimeObservation
 from eval.phase1.oracle import (

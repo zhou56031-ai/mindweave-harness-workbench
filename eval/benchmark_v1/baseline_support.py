@@ -5,12 +5,12 @@ from datetime import datetime
 import json
 from pathlib import Path
 from statistics import mean,median
-from hexgent.config import HexgentConfig
-from hexgent.loop.limits import LoopLimits
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.loop.limits import LoopLimits
 
 
 def full_config(budget):
-    config=HexgentConfig(loop=LoopLimits(max_model_rounds=40,max_tool_calls=budget['max_tool_calls'],max_total_tokens=budget['max_provider_tokens'],max_elapsed_seconds=budget['max_wall_time_seconds'],max_output_tokens_per_round=4096))
+    config=MindWeaveHarnessConfig(loop=LoopLimits(max_model_rounds=40,max_tool_calls=budget['max_tool_calls'],max_total_tokens=budget['max_provider_tokens'],max_elapsed_seconds=budget['max_wall_time_seconds'],max_output_tokens_per_round=4096))
     return replace(config,context_extraction=replace(config.context_extraction,enabled=False),context_retrieval=replace(config.context_retrieval,enabled=False),tool_parallel=replace(config.tool_parallel,enabled=False))
 
 

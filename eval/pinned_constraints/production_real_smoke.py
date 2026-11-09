@@ -8,15 +8,15 @@ from time import perf_counter
 from unittest.mock import patch
 from urllib.parse import urlsplit
 
-from hexgent.agent_engine import AgentEngine, RunRequest
-from hexgent.client import get_client, get_model
-from hexgent.config import load_config
-from hexgent.context.context_builder import build_context_details
-from hexgent.context.context_compaction import compact_context_if_needed
-from hexgent.events import ToolFinishedEvent
-from hexgent.run_control import RunControl
-from hexgent.session.pinned_constraints import active_constraints, replay_constraints
-from hexgent.tool.tool_registry import TOOL_REGISTRY
+from mindweave_harness.agent_engine import AgentEngine, RunRequest
+from mindweave_harness.client import get_client, get_model
+from mindweave_harness.config import load_config
+from mindweave_harness.context.context_builder import build_context_details
+from mindweave_harness.context.context_compaction import compact_context_if_needed
+from mindweave_harness.events import ToolFinishedEvent
+from mindweave_harness.run_control import RunControl
+from mindweave_harness.session.pinned_constraints import active_constraints, replay_constraints
+from mindweave_harness.tool.tool_registry import TOOL_REGISTRY
 from eval.support.agent_contracts import FakeModel, text_response
 from eval.memory_m2_real import RequestRecorder
 from eval.pinned_constraints.real_smoke import audit_snapshot, AuditedStream, record_error, business_files

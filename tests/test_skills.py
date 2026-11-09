@@ -4,19 +4,19 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from hexgent.context import ContextManager, build_context
-from hexgent.loop.agent_turn import _activated_skill, _available_tools_for_state
-from hexgent.loop.loop_state import LoopState, RunStateSnapshot
-from hexgent.plan import InMemoryPlanStore
-from hexgent.skill import SkillRegistry
-from hexgent.tool.skill_tools import (
+from mindweave_harness.context import ContextManager, build_context
+from mindweave_harness.loop.agent_turn import _activated_skill, _available_tools_for_state
+from mindweave_harness.loop.loop_state import LoopState, RunStateSnapshot
+from mindweave_harness.plan import InMemoryPlanStore
+from mindweave_harness.skill import SkillRegistry
+from mindweave_harness.tool.skill_tools import (
     activate_skill,
     create_skill,
     validate_activate_skill,
 )
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.tool.tool_scheduler import CompletedToolCall
-from hexgent.tool.tool_result import ToolExecutionResult
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.tool.tool_scheduler import CompletedToolCall
+from mindweave_harness.tool.tool_result import ToolExecutionResult
 
 
 class SkillTest(unittest.TestCase):

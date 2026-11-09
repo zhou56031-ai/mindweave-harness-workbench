@@ -84,7 +84,7 @@ class BusinessCaseVerifier:
             if call["tool_name"]=="read_file" and call["status"]=="success":
                 read_path=str(call["arguments"].get("path",""))
                 values["tool_scope"] = values["tool_scope"] and "/tool-results/" in read_path and (
-                    read_path.startswith(".hexgent/sessions/") or read_path.startswith("/workdir/.hexgent/sessions/"))
+                    read_path.startswith(".mindweave_harness/sessions/") or read_path.startswith("/workdir/.mindweave_harness/sessions/"))
         task=inputs.contract.task_id
         oracle=inputs.contract.expected_outcome
         if task=="T01":

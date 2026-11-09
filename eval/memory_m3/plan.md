@@ -8,7 +8,7 @@ C5-A 为无更正正式恢复一致性；C5-B 为 Checkpoint 后更正、正式�
 禁止改写 Checkpoint、新 Session 或新 submit 替代 Continue。
 ON/OFF 必须先证明同 Stage A 快照/Store/Memory/Transcript/权限/input，唯一目标差异为 Record开关，实际请求OFF不注入、历史/summary/回读仍保留。发现 P0 即停止待审批。
 
-基线审计：`eval/MEMORY_M3.md`。仓库 `/Users/hector/dev/hexgent`。
+基线审计：`eval/MEMORY_M3.md`。仓库 `/Users/hector/dev/mindweave_harness`。
 本文件只设计，不创建 Runner/Fixture，不执行测试或付费模型，不修改 M2。
 
 ## 1. 实验原则
@@ -40,7 +40,7 @@ C2/C5 的机制子实验允许安全 Engine API upsert，但必须独立标记 T
 
 1. 在隔离 fixture 中真实 Stage A，通过 Production extraction 形成记录。
 2. qualification 检查 active、真实来源、完整实体/取值绑定、对 Stage B 合理相关；不能只用 token_overlap。
-3. 冻结完整 Stage A workspace + .hexgent + Transcript + Context projection +工具结果+已发生 Compaction；记录源码/config/fixture hash。
+3. 冻结完整 Stage A workspace + .mindweave_harness + Transcript + Context projection +工具结果+已发生 Compaction；记录源码/config/fixture hash。
 4. 克隆两个完全相同快照，均 Restore 相同原 Session，然后新 submit 相同 Stage B query。
 5. ON enabled=true；OFF enabled=false。相同 Memory 状态，最好空且 retrieval 同时固定 disabled；不是一侧关 Memory、一侧开。
 6. 两侧的 extraction/Compaction、工具权限、模型、预算均相同；OFF 不关其他 Agent 能力。不能删除 OFF Transcript 或禁止仅 OFF 回读资料。

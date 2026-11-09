@@ -11,14 +11,14 @@ from time import monotonic
 import unittest
 from unittest.mock import patch
 
-from hexgent.agent_engine import AgentEngine
-from hexgent.config import HexgentConfig
-from hexgent.run_control import RunControl
-from hexgent.session.session_store import SessionStore
-from hexgent.tool.tool_registry import TOOL_REGISTRY
-from hexgent.tool.tool_result import ToolHandlerResult
-from hexgent.tool.tool_retry import ToolRetryLimits
-from hexgent.tool.tool_scheduler import ToolParallelLimits
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.run_control import RunControl
+from mindweave_harness.session.session_store import SessionStore
+from mindweave_harness.tool.tool_registry import TOOL_REGISTRY
+from mindweave_harness.tool.tool_result import ToolHandlerResult
+from mindweave_harness.tool.tool_retry import ToolRetryLimits
+from mindweave_harness.tool.tool_scheduler import ToolParallelLimits
 from tests.test_interrupting_steer import Client, completed
 
 
@@ -37,9 +37,9 @@ class ToolSteeringTests(unittest.TestCase):
         self.control = RunControl()
 
     def run_engine(self, calls, *, config=None, permission=None):
-        self.engine = AgentEngine.create(config or HexgentConfig(), self.root)
+        self.engine = AgentEngine.create(config or MindWeaveHarnessConfig(), self.root)
         self.client = Client([[completed(output=calls)], [completed()]])
-        with patch("hexgent.loop.agent_turn.get_model", return_value="offline"):
+        with patch("mindweave_harness.loop.agent_turn.get_model", return_value="offline"):
             self.events = list(self.engine.run("读取或更新资料", client=self.client,
                 run_control=self.control, user_confirmation=permission or (lambda *_: "allow")))
         self.records = self.engine.session.store.read_transcript()
@@ -96,7 +96,7 @@ class ToolSteeringTests(unittest.TestCase):
             result = original.function(path, context)
             settled.set()
             return result
-        config = replace(HexgentConfig(), tool_parallel=ToolParallelLimits(max_workers=1))
+        config = replace(MindWeaveHarnessConfig(), tool_parallel=ToolParallelLimits(max_workers=1))
         with patch.dict(TOOL_REGISTRY, {"read_file": replace(original, function=read)}), ThreadPoolExecutor(max_workers=1) as pool:
             future = pool.submit(self.run_engine, [call("r1", path="a.txt"), call("r2", path="b.txt"), call("r3", path="c.txt")], config=config)
             try:
@@ -126,7 +126,7 @@ class ToolSteeringTests(unittest.TestCase):
                     entered.append(path)
                     self.control.steer("不要重试", mode="interrupt")
                     return ToolHandlerResult.failed("temporary", "可重试失败", retryable=True, side_effect_state="not_started")
-                config = replace(HexgentConfig(), tool_retry=ToolRetryLimits(enabled=retry, initial_backoff_seconds=0.001),
+                config = replace(MindWeaveHarnessConfig(), tool_retry=ToolRetryLimits(enabled=retry, initial_backoff_seconds=0.001),
                                  tool_parallel=ToolParallelLimits(max_workers=1))
                 with patch.dict(TOOL_REGISTRY, {"read_file": replace(original, function=fail, deduplication_policy="exact")}):
                     result = self.run_engine([call("r1", path="a.txt"), call("r2", path="a.txt")], config=config)
@@ -144,7 +144,7 @@ class ToolSteeringTests(unittest.TestCase):
             (context.workdir / path).write_text(content)
             self.control.steer("先核实写入", mode="interrupt")
             return ToolHandlerResult.failed("response_lost", "需要核验", retryable=True, side_effect_state="unknown")
-        config = replace(HexgentConfig(), tool_retry=ToolRetryLimits(enabled=True, initial_backoff_seconds=0.001))
+        config = replace(MindWeaveHarnessConfig(), tool_retry=ToolRetryLimits(enabled=True, initial_backoff_seconds=0.001))
         with patch.dict(TOOL_REGISTRY, {"write_file": replace(original, function=unknown, automatic_retry_safe=True)}):
             self.run_engine([call("w", "write_file", path="unknown.txt", content="one")], config=config)
         self.assertEqual(entered, ["unknown.txt"])
@@ -158,7 +158,7 @@ class ToolSteeringTests(unittest.TestCase):
             entered.append(path)
             self.control.steer("边界要求")
             return original.function(path, context)
-        config = replace(HexgentConfig(), tool_parallel=ToolParallelLimits(enabled=False))
+        config = replace(MindWeaveHarnessConfig(), tool_parallel=ToolParallelLimits(enabled=False))
         with patch.dict(TOOL_REGISTRY, {"read_file": replace(original, function=read)}):
             self.run_engine([call("r1", path="a.txt"), call("r2", path="b.txt")], config=config)
         self.assertEqual(entered, ["a.txt", "b.txt"])
@@ -203,10 +203,10 @@ class ToolSteeringTests(unittest.TestCase):
             return result
         def clock():
             return monotonic() + (100 if started.is_set() else 0)
-        config = replace(HexgentConfig(), tool_parallel=ToolParallelLimits(max_workers=1, batch_timeout_seconds=1))
+        config = replace(MindWeaveHarnessConfig(), tool_parallel=ToolParallelLimits(max_workers=1, batch_timeout_seconds=1))
         with patch.dict(TOOL_REGISTRY, {"read_file": replace(original_read, function=read)}), \
                 patch.object(SessionStore, "append_transcript", new=append), \
-                patch("hexgent.tool.tool_scheduler.monotonic", side_effect=clock), ThreadPoolExecutor(max_workers=1) as pool:
+                patch("mindweave_harness.tool.tool_scheduler.monotonic", side_effect=clock), ThreadPoolExecutor(max_workers=1) as pool:
             future = pool.submit(self.run_engine, [call("r1", path="a.txt"), call("r2", path="b.txt")], config=config)
             try:
                 self.assertTrue(settlement_wait.wait(5))

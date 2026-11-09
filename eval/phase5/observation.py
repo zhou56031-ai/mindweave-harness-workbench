@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Any, Literal
 
-from hexgent.utils.token_estimator import estimate_request_tokens, estimate_value_tokens
+from mindweave_harness.utils.token_estimator import estimate_request_tokens, estimate_value_tokens
 
 
 EvidenceType = Literal[

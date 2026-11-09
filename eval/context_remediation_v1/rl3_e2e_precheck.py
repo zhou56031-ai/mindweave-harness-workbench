@@ -5,9 +5,9 @@ import json
 from pathlib import Path
 import subprocess
 
-from hexgent.context.context_budget import ContextLimits
-from hexgent.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS, EXTRACTION_PROMPT_VERSION
-from hexgent.utils.token_estimator import estimate_request_tokens
+from mindweave_harness.context.context_budget import ContextLimits
+from mindweave_harness.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS, EXTRACTION_PROMPT_VERSION
+from mindweave_harness.utils.token_estimator import estimate_request_tokens
 from .historical_prompts import V2
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -25,7 +25,7 @@ def main():
     requests=json.loads(source.read_text())
     extractor=estimate_request_tokens(V2,requests['extraction']['input'],[])
     summary=estimate_request_tokens(requests['summary']['instructions'],requests['summary']['input'],[])
-    before={str(p.relative_to(ROOT)):sha256(p.read_bytes()).hexdigest() for p in (ROOT/'hexgent').rglob('*.py')}
+    before={str(p.relative_to(ROOT)):sha256(p.read_bytes()).hexdigest() for p in (ROOT/'mindweave_harness').rglob('*.py')}
     fixture=ROOT/'eval/context_management/c2_prep_2/long_fixtures/L3.json'
     oracle=ROOT/'eval/context_management/c2_prep_3/oracle_v2/L3.json'
     save('manifest.json',dict(created_at=datetime.now(timezone.utc).isoformat(),stage='PRE_EXECUTION_ONLY',fixture='R-L3',
@@ -42,13 +42,13 @@ def main():
         actual_main_request_estimates='NOT_ASSEMBLED',hard_total_call_limit='NOT_FROZEN',
         risks=['MAIN自主工具调用可能增加轮次，此数不是任意Agent轨迹的总上限','当前Production提取超时120秒，不能把旧Eval300秒视为Production配置','Provider容量错误属于INFRA','未执行连通性或容量探测']))
     result=dict(gate='C2_RL3_E2E_INCOMPLETE',engineering='NOT_EXECUTED',task_quality='NOT_EVALUABLE',cost='ESTIMATED_ONLY',provider_calls=0,
-        blockers=[dict(code='EXTRACTOR_V2_NOT_PRODUCTION_WIRED',evidence='hexgent/context/key_fact_extractor.py:12,55',
+        blockers=[dict(code='EXTRACTOR_V2_NOT_PRODUCTION_WIRED',evidence='mindweave_harness/context/key_fact_extractor.py:12,55',
             detail='Production固定v1；v2仅为Eval factorial_pilot请求instructions加PROMPT_ADDITION。直接运行不满足本轮指定v2。'),
             dict(code='E2E_REQUEST_PROFILE_NOT_FROZEN',detail='需要选择并审计Eval-only v2请求适配，或另行批准Production接线；同时冻结MAIN总轮次/调用上限及正式Continue快照方案。')],
         no_fallback_to_v1=True,no_fake_main_substitution=True,no_new_session_resume_substitution=True)
     save('result.json',result)
     diff=subprocess.run(['git','diff','--check'],cwd=ROOT,capture_output=True,text=True)
-    after={str(p.relative_to(ROOT)):sha256(p.read_bytes()).hexdigest() for p in (ROOT/'hexgent').rglob('*.py')}
+    after={str(p.relative_to(ROOT)):sha256(p.read_bytes()).hexdigest() for p in (ROOT/'mindweave_harness').rglob('*.py')}
     save('integrity.json',dict(production_unchanged=before==after,fixture_unchanged=sha256(fixture.read_bytes()).hexdigest()==json.loads((out/'manifest.json').read_text())['fixture_sha256'],
         git_diff_check=dict(exit_code=diff.returncode,output=diff.stdout+diff.stderr)))
     (out/'REPORT.md').write_text('''# C2 R-L3 E2E 执行前核查

@@ -59,7 +59,7 @@ class BusinessCaseEnvironment(TrialEnvironmentManager):
         # 使用既有权限请求接口按合同决定；不打开 auto_approve 或修改权限管线。
         config["services"]["workspace"]["environment"]["HEXWORKSPACE_AGENT_PERMISSION_MODE"] = "default"
         budget = self.contract.execution_budget
-        (private / "workdir/hexgent.toml").write_text(f'''[loop]
+        (private / "workdir/mindweave_harness.toml").write_text(f'''[loop]
 enforce_run_limits = true
 max_model_rounds = 40
 max_tool_calls = {budget.max_tool_calls}
@@ -76,7 +76,7 @@ max_workers = 4
 ''')
         if self.variant_id is not None:
             from .variants import config_toml, effective_config
-            (private/'workdir/hexgent.toml').write_text(config_toml(effective_config(budget.model_dump(), self.variant_id)))
+            (private/'workdir/mindweave_harness.toml').write_text(config_toml(effective_config(budget.model_dump(), self.variant_id)))
         if self.contract.verifier_spec.verifier_version=='2':
             control=dict(protocol_version=2,identity=dict(suite_id=self.contract.suite_id,
                 case_id=self.contract.case_id,trial_id=trial_id,contract_sha256=self.contract.digest()),
@@ -84,7 +84,7 @@ max_workers = 4
             dump(private/'workdir/.benchmark-control.json',control)
             eval_root=Path(__file__).resolve().parents[1]
             config['services']['runtime']['volumes'].append(f'{eval_root}:/opt/benchmark/eval:ro')
-            config['services']['runtime']['environment']={'PYTHONPATH':'/opt/benchmark:/opt/hexgent'}
+            config['services']['runtime']['environment']={'PYTHONPATH':'/opt/benchmark:/opt/mindweave_harness'}
             config['services']['runtime']['command']=['python','-m','eval.benchmark_v1.eval_runtime','--workdir','/workdir']
         return config
 

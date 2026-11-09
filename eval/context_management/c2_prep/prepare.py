@@ -10,13 +10,13 @@ from datetime import datetime, timezone
 from .catalog import CASES
 from eval.context_management.c1_independent import Gate, Recorder, hashes, plain, response, save
 from eval.tool_hardening.v3_provider import Observer
-from hexgent.agent_engine import AgentEngine
-from hexgent.config import validate_config
-from hexgent.context.context_builder import build_context_details
-from hexgent.session.pinned_constraints import active_constraints
-from hexgent.loop.agent_turn import _available_tools_for_state
-from hexgent.loop.loop_state import LoopState
-from hexgent.utils.token_estimator import estimate_request_tokens
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.config import validate_config
+from mindweave_harness.context.context_builder import build_context_details
+from mindweave_harness.session.pinned_constraints import active_constraints
+from mindweave_harness.loop.agent_turn import _available_tools_for_state
+from mindweave_harness.loop.loop_state import LoopState
+from mindweave_harness.utils.token_estimator import estimate_request_tokens
 
 ROOT = Path(__file__).resolve().parent
 
@@ -129,7 +129,7 @@ def main():
             summary = '<summary>当前目标：继续资料核对。重要发现：\n' + '\n'.join(f['quote'] for f in facts if f['channel'] == 'SUMMARY_REQUIRED') + '\n剩余工作：根据当前事实完成交接。</summary>'
             recorder = StreamRecorder(evidence, summary=[summary])
             observer = OfflineObserver(SimpleNamespace(responses=recorder, base_url='offline://fake'), directory / 'provider-calls.json')
-            with patch('hexgent.loop.agent_turn.get_model', return_value='FAKE_ONLY'):
+            with patch('mindweave_harness.loop.agent_turn.get_model', return_value='FAKE_ONLY'):
                 events = list(engine.run(latest, client=observer))
             mains = [r['request'] for r in evidence['requests'] if r['kind'] == 'MAIN']
             comps = [r['request'] for r in evidence['requests'] if r['kind'] == 'COMPACTION']

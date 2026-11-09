@@ -4,8 +4,8 @@ from hashlib import sha256
 from pathlib import Path
 from dataclasses import asdict
 
-from hexgent.context.key_fact_snapshot import validate_snapshot
-from hexgent.context.context_budget import ContextLimits
+from mindweave_harness.context.key_fact_snapshot import validate_snapshot
+from mindweave_harness.context.context_budget import ContextLimits
 from .factorial_pilot import file_hashes
 from .offline import ROOT, fingerprints
 
@@ -59,7 +59,7 @@ def main():
             ledger=ledger,conservative_preparation_capacity_ceiling=350011),retry_count=0,extra_model_calls=0))
     old=ROOT/'eval/context_remediation_v1/diagnostics/fixture_semantic_projection_v3'
     historical=read('integrity.json')
-    save('review-integrity.json',dict(production_unchanged=manifest['production_hashes']==file_hashes(ROOT/'hexgent'),frozen_unchanged=manifest['frozen_hashes']==fingerprints(),
+    save('review-integrity.json',dict(production_unchanged=manifest['production_hashes']==file_hashes(ROOT/'mindweave_harness'),frozen_unchanged=manifest['frozen_hashes']==fingerprints(),
         original_fixture_rounds_unchanged=True,proof='实际Extractor history_prefix逐条与此前冻结同期00请求的history_prefix比较',
         history_prefix_equal=payload['history_prefix']==json.loads(json.loads((ROOT/'eval/context_remediation_v1/runs/extractor-quality-pilot-v1-20261012/requests/00.json').read_text())['input'][0]['content'])['history_prefix'],
         git_diff_check=historical['git_diff_check'],history_not_overwritten=True,paid_retries=0))

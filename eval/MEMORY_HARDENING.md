@@ -7,7 +7,7 @@ B 在同一工作区的新进程、新 Session 中使用约定。共六次真实
 prepare / analyze 绝不调用 Provider；离线测试不是模型能力证据。
 
 不改变 Memory、ContextRecord、Compression、检索或权限实现。不做 ON/OFF、自动提取、
-效率收益或 ContextRecord 评测。配置继承准备时的 hexgent.toml，仅本次评测明确 auto_approve；
+效率收益或 ContextRecord 评测。配置继承准备时的 mindweave_harness.toml，仅本次评测明确 auto_approve；
 生产硬拒绝仍有效。临时工作区不是 OS sandbox。
 
 ## 执行
@@ -17,7 +17,7 @@ prepare / analyze 绝不调用 Provider；离线测试不是模型能力证据�
 按现有生产配置执行，并从 Provider 观测确认实际模型。报告核验 A/B 模型及 Provider 一致。
 
 ```sh
-cd /Users/hector/dev/hexgent
+cd /Users/hector/dev/mindweave_harness
 export MEMORY_EVAL_OUTPUT="$PWD/eval/memory_hardening/runs/real-v1-$(date -u +%Y%m%dT%H%M%SZ)"
 .venv/bin/python -m eval.memory_hardening prepare --output-dir "$MEMORY_EVAL_OUTPUT"
 cat "$MEMORY_EVAL_OUTPUT/commands.txt"
@@ -31,7 +31,7 @@ cat "$MEMORY_EVAL_OUTPUT/commands.txt"
 全部六次任务完成后，可自动关联 Session 并输出三组总报告：
 
 ```sh
-cd /Users/hector/dev/hexgent
+cd /Users/hector/dev/mindweave_harness
 .venv/bin/python -m eval.memory_hardening analyze-all --output-dir "$MEMORY_EVAL_OUTPUT"
 ```
 
@@ -39,12 +39,12 @@ cd /Users/hector/dev/hexgent
 缺失或重复会标记 BLOCKED，并保持总分母为三组。若需逐组审计，可列出 Session：
 
 ```sh
-cd /Users/hector/dev/hexgent
-.venv/bin/python -c 'import json,os,pathlib; m=json.loads((pathlib.Path(os.environ["MEMORY_EVAL_OUTPUT"])/"manifest.json").read_text()); print("\n".join(str(p) for c in m["cases"].values() for p in sorted((pathlib.Path(c["workspace"])/".hexgent/sessions").glob("*"))))'
+cd /Users/hector/dev/mindweave_harness
+.venv/bin/python -c 'import json,os,pathlib; m=json.loads((pathlib.Path(os.environ["MEMORY_EVAL_OUTPUT"])/"manifest.json").read_text()); print("\n".join(str(p) for c in m["cases"].values() for p in sorted((pathlib.Path(c["workspace"])/".mindweave_harness/sessions").glob("*"))))'
 .venv/bin/python -m eval.memory_hardening analyze \
   --output-dir "$MEMORY_EVAL_OUTPUT" --case project \
-  --session-a '/替换为/project/.hexgent/sessions/A目录' \
-  --session-b '/替换为/project/.hexgent/sessions/B目录'
+  --session-a '/替换为/project/.mindweave_harness/sessions/A目录' \
+  --session-b '/替换为/project/.mindweave_harness/sessions/B目录'
 ```
 
 preference / constraint 使用各自 Session 路径和 --case。报告新增时间戳文件，不覆盖原始证据。

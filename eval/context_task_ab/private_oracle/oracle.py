@@ -21,7 +21,7 @@ def assess(workspace):
     def check(name,ok,detail=None):checks.append(dict(name=name,passed=bool(ok),detail=detail))
     frozen=manifest(FIXTURE);current=manifest(workspace)
     changed=[p for p,h in frozen.items() if current.get(p)!=h]
-    extra=[p for p in current if p not in frozen and not p.startswith(('outputs/','.hexgent/'))]
+    extra=[p for p in current if p not in frozen and not p.startswith(('outputs/','.mindweave_harness/'))]
     check('read_only_inputs',not changed and not extra,dict(changed=changed,unexpected=extra))
     try:
         data=json.loads((workspace/'outputs/comparison.json').read_text())

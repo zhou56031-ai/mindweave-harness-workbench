@@ -80,7 +80,7 @@ NO_GO_FOR_SCORING_CONTRACT_FREEZE。停止扩大结构化语义模型，不自�
     p.write_text(report)
     m=read(OUT/'manifest.json'); integrity=read(OUT/'integrity_report.json')
     assert hashes(BASE)==m['v2_hashes']
-    assert hashes(ROOT/'hexgent')==m['production_hashes']
+    assert hashes(ROOT/'mindweave_harness')==m['production_hashes']
     assert all(hashlib.sha256((OUT/p).read_bytes()).hexdigest()==h for p,h in m['frozen_files'].items())
     diff=subprocess.run(['git','diff','--check'],cwd=ROOT,capture_output=True,text=True)
     assert diff.returncode==0

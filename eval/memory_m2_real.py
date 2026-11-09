@@ -9,15 +9,15 @@ from pathlib import Path
 import re
 from types import SimpleNamespace
 
-from hexgent.agent_engine import AgentEngine, RunRequest
-from hexgent.client import get_client, get_model
-from hexgent.config import load_config
-from hexgent.events import ToolFinishedEvent
-from hexgent.memory import MemoryStore, MemoryRetriever
-from hexgent.observation import current_observation, source_fingerprint
-from hexgent.run_control import RunControl
-from hexgent.session.checkpoint import CheckpointStore
-from hexgent.tool.tool_permission_pipeline import PermissionConfig
+from mindweave_harness.agent_engine import AgentEngine, RunRequest
+from mindweave_harness.client import get_client, get_model
+from mindweave_harness.config import load_config
+from mindweave_harness.events import ToolFinishedEvent
+from mindweave_harness.memory import MemoryStore, MemoryRetriever
+from mindweave_harness.observation import current_observation, source_fingerprint
+from mindweave_harness.run_control import RunControl
+from mindweave_harness.session.checkpoint import CheckpointStore
+from mindweave_harness.tool.tool_permission_pipeline import PermissionConfig
 from eval.memory_m1 import dump, rows, tree_hash, write_oracle, answer_oracle, no_external_fact_source
 
 

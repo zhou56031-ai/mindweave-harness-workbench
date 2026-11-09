@@ -2,7 +2,7 @@
 
 新实验入口：`eval.tool_hardening.v3_open_audit`。不会覆盖历史V3。
 
-唯一用户query：`请帮我审计一下 \`hexgent/tool\` 模块的设计`。
+唯一用户query：`请帮我审计一下 \`mindweave_harness/tool\` 模块的设计`。
 
 不附加指定问题、必须读取的文件、固定调用序列、JSON输出或逐字引用要求；不提示并发。任务结果人工审核，`strict_citation_pass=null`、`strict_citation_status=NOT_APPLICABLE`，不得因自由文本输出判旧JSON Oracle FAIL，也不得据Agent completed宣布任务PASS。旧V3的Prompt/Oracle默认行为保留。
 
@@ -10,7 +10,7 @@
 
 默认5对（10个Agent Run），第1对ON/OFF、第2对OFF/ON交替。每次新子进程、新workspace和Session。只改变parallel.enabled；一对结束验证其他config相同。没有自动Replay或重复失败样本。Provider失败/协议错误/源码变化停止并保留日志，不过滤负面耗时。
 
-每个Run保留：artifact.json、provider-calls.json、metrics.json、timing-events.json、evidence-index.json及完整workspace/.hexgent Session/Transcript/Checkpoint/tool-results。父report.json保留各样本和逐对第一请求相等性、工具语义轨迹相等性；manifest冻结源码、Eval实现、query、模型、Provider和preflight引用。不保存API Key。
+每个Run保留：artifact.json、provider-calls.json、metrics.json、timing-events.json、evidence-index.json及完整workspace/.mindweave_harness Session/Transcript/Checkpoint/tool-results。父report.json保留各样本和逐对第一请求相等性、工具语义轨迹相等性；manifest冻结源码、Eval实现、query、模型、Provider和preflight引用。不保存API Key。
 
 timing-events使用同一perf_counter起点记录Handler call/return、Pipeline resume/suspend和Runtime事件，可关联Call ID及Provider turn。两侧都开启相同Profiler，因此性能包含诊断开销；不得称无观测开销性能。Provider完整request/response、UTC起止/monotonic duration/Usage继续由现有Observer记录。SDK内部attempt、stream-close细分或Context/Persistence独立span仍不可观测，不能填0或猜测。
 

@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import unittest
 
-from hexgent.session import Session
+from mindweave_harness.session import Session
 
 from eval.phase1.observation import RuntimeObservation, observation_from_session
 from eval.support.agent_contracts import run_trace, text_response

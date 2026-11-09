@@ -4,13 +4,13 @@ from dataclasses import replace
 import json
 from pathlib import Path
 import httpx
-from hexgent.agent_engine import AgentEngine, RunRequest
-from hexgent.config import HexgentConfig
-from hexgent.loop.limits import LoopLimits
-from hexgent.prompt import TOOLS
-from hexgent.tool.tool_registry import TOOL_REGISTRY, RegisteredTool
-from hexgent.tool.tool_validation import TOOL_SCHEMAS
-from hexgent.tool.tool_result import ToolHandlerResult
+from mindweave_harness.agent_engine import AgentEngine, RunRequest
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.loop.limits import LoopLimits
+from mindweave_harness.prompt import TOOLS
+from mindweave_harness.tool.tool_registry import TOOL_REGISTRY, RegisteredTool
+from mindweave_harness.tool.tool_validation import TOOL_SCHEMAS
+from mindweave_harness.tool.tool_result import ToolHandlerResult
 from .environment import dump
 
 
@@ -44,7 +44,7 @@ def main():
         install(cfg['trial_control'])
     # 外部业务系统仅通过此适配器暴露；工具 Schema 选择不改变 Kernel 规则。
     TOOLS[:]=[t for t in TOOLS if t['name'] in cfg['allowed_tools']]
-    config=HexgentConfig(loop=LoopLimits(max_model_rounds=20,max_tool_calls=cfg['budget']['max_tool_calls'],max_total_tokens=cfg['budget']['max_provider_tokens'],max_elapsed_seconds=cfg['budget']['max_wall_time_seconds'],max_output_tokens_per_round=3000))
+    config=MindWeaveHarnessConfig(loop=LoopLimits(max_model_rounds=20,max_tool_calls=cfg['budget']['max_tool_calls'],max_total_tokens=cfg['budget']['max_provider_tokens'],max_elapsed_seconds=cfg['budget']['max_wall_time_seconds'],max_output_tokens_per_round=3000))
     if cfg.get('phase')=='baseline':
         from .baseline_support import full_config
         config=full_config(cfg['budget'])

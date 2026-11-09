@@ -8,14 +8,14 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from typing import Any, Callable
 
-from hexgent.context import ContextLimits, ContextManager
-from hexgent.context.context_compaction import compact_context_if_needed
-from hexgent.memory import ContextRecordInput, ContextRetrievalLimits
-from hexgent.plan import Plan, PlanStep
-from hexgent.session import Session, SessionRestorer
-from hexgent.tool.builtin_tools import read_file, write_file
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.plan import InMemoryPlanStore
+from mindweave_harness.context import ContextLimits, ContextManager
+from mindweave_harness.context.context_compaction import compact_context_if_needed
+from mindweave_harness.memory import ContextRecordInput, ContextRetrievalLimits
+from mindweave_harness.plan import Plan, PlanStep
+from mindweave_harness.session import Session, SessionRestorer
+from mindweave_harness.tool.builtin_tools import read_file, write_file
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.plan import InMemoryPlanStore
 from tests.support.fact_extraction_fixture import extraction_event
 
 
@@ -245,7 +245,7 @@ def workspace_memory_is_not_session_isolated() -> ContextMemoryScenario:
     def execute() -> ContextMemoryObservation:
         return ContextMemoryObservation({
             "scope": "workspace",
-            "reason": "MemoryStore 位于 <workdir>/.hexgent/memory，跨 Session 设计为可召回",
+            "reason": "MemoryStore 位于 <workdir>/.mindweave_harness/memory，跨 Session 设计为可召回",
         })
 
     def verify(_observation: ContextMemoryObservation) -> None:

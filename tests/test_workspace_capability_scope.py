@@ -4,13 +4,13 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 import unittest
 
-from hexgent.context import ContextManager
-from hexgent.integration.capability import CapabilityResult
-from hexgent.loop.agent_turn import _available_tools_for_state
-from hexgent.loop.loop_state import LoopState
-from hexgent.plan import InMemoryPlanStore
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.tool.tool_execution import execute_tool_call
+from mindweave_harness.context import ContextManager
+from mindweave_harness.integration.capability import CapabilityResult
+from mindweave_harness.loop.agent_turn import _available_tools_for_state
+from mindweave_harness.loop.loop_state import LoopState
+from mindweave_harness.plan import InMemoryPlanStore
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.tool.tool_execution import execute_tool_call
 
 
 class WorkspaceCapabilityScopeTest(unittest.TestCase):
@@ -36,7 +36,7 @@ class WorkspaceCapabilityScopeTest(unittest.TestCase):
         self.assertNotIn("list_folder", names)
         self.assertIn("create_plan", names)
 
-    @patch("hexgent.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
+    @patch("mindweave_harness.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
     def test_disallowed_workspace_tool_stops_before_permission_and_gateway(self, invoke: Mock) -> None:
         confirm = Mock(return_value="allow")
         permission_events: list[str] = []
@@ -57,7 +57,7 @@ class WorkspaceCapabilityScopeTest(unittest.TestCase):
         invoke.assert_not_called()
         self.assertEqual([], permission_events)
 
-    @patch("hexgent.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
+    @patch("mindweave_harness.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
     def test_allowed_workspace_tool_still_uses_permission_pipeline(self, invoke: Mock) -> None:
         invoke.return_value = CapabilityResult(
             "v1", "workspace-run-1", "call-1", "SUCCEEDED", {"items": []}

@@ -10,13 +10,13 @@ from types import SimpleNamespace
 from unittest.mock import patch
 from urllib.parse import urlsplit
 
-from hexgent.agent_engine import AgentEngine
-from hexgent.client import get_client, get_model
-from hexgent.context.context_compaction import compact_context_if_needed
-from hexgent.loop.limits import LoopLimits
-from hexgent.observation import source_fingerprint, current_observation
-from hexgent.tool.tool_registry import TOOL_REGISTRY
-from hexgent.utils.token_estimator import estimate_request_tokens
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.client import get_client, get_model
+from mindweave_harness.context.context_compaction import compact_context_if_needed
+from mindweave_harness.loop.limits import LoopLimits
+from mindweave_harness.observation import source_fingerprint, current_observation
+from mindweave_harness.tool.tool_registry import TOOL_REGISTRY
+from mindweave_harness.utils.token_estimator import estimate_request_tokens
 from eval.memory_m1 import dump, tree_hash
 from eval.memory_m2_real import RequestRecorder
 from eval.memory_m3.real_smoke import CaptureStream
@@ -123,7 +123,7 @@ class RealClient(RequestRecorder):
 
 
 def business_files(work):
-    return {p.relative_to(work).as_posix():p.read_text(encoding="utf-8",errors="replace") for p in work.rglob("*") if p.is_file() and ".hexgent" not in p.relative_to(work).parts}
+    return {p.relative_to(work).as_posix():p.read_text(encoding="utf-8",errors="replace") for p in work.rglob("*") if p.is_file() and ".mindweave_harness" not in p.relative_to(work).parts}
 
 
 def behavior(rows, transcript, before, after, answer, work):

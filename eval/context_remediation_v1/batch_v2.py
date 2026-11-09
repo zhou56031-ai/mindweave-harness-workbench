@@ -11,17 +11,17 @@ from pathlib import Path
 from time import monotonic
 from urllib.parse import urlsplit
 
-from hexgent.agent_engine import AgentEngine
-from hexgent.config import load_config
-from hexgent.context import ContextManager
-from hexgent.context.context_builder import build_context_details
-from hexgent.context.context_compaction import compact_context_if_needed, _select_cut_index, COMPACTION_INSTRUCTIONS
-from hexgent.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS
-from hexgent.context.key_fact_snapshot import snapshot_message
-from hexgent.loop.loop_state import LoopState
-from hexgent.loop.agent_turn import _available_tools_for_state
-from hexgent.session.checkpoint import _context_snapshot
-from hexgent.utils.token_estimator import estimate_request_tokens, estimate_value_tokens
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.config import load_config
+from mindweave_harness.context import ContextManager
+from mindweave_harness.context.context_builder import build_context_details
+from mindweave_harness.context.context_compaction import compact_context_if_needed, _select_cut_index, COMPACTION_INSTRUCTIONS
+from mindweave_harness.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS
+from mindweave_harness.context.key_fact_snapshot import snapshot_message
+from mindweave_harness.loop.loop_state import LoopState
+from mindweave_harness.loop.agent_turn import _available_tools_for_state
+from mindweave_harness.session.checkpoint import _context_snapshot
+from mindweave_harness.utils.token_estimator import estimate_request_tokens, estimate_value_tokens
 from eval.support.agent_contracts import text_response
 from .offline import ROOT, fingerprints
 from .factorial_pilot import file_hashes
@@ -85,7 +85,7 @@ def requests(engine,state,built,tools):
 def prepare(out):
     if out.exists():raise RuntimeError('禁止覆盖批次')
     out.mkdir(parents=True)
-    production=file_hashes(ROOT/'hexgent');assets=fingerprints();rows=[]
+    production=file_hashes(ROOT/'mindweave_harness');assets=fingerprints();rows=[]
     for identity in IDS:
         directory=out/identity;engine,state,built,tools,fixture,oracle,source_map=setup(directory,identity)
         cut,extract,summary=requests(engine,state,built,tools)
@@ -151,9 +151,9 @@ def execute_case(out,identity,base):
     if not audited['budget_fits'] or not audited['oracle_locator_valid']:
         result=dict(id=identity,status='AUDIT_OR_BUDGET_BLOCKED',provider_calls=0);save(directory,'result.json',result);return result
     # 克隆冻结初始durable上下文；不重播工具Handler，不制造历史执行证据。
-    from hexgent.context import ContextManager
-    from hexgent.session import SessionStore, Session, SessionSettings
-    from hexgent.session.session_restore import SessionRestorer
+    from mindweave_harness.context import ContextManager
+    from mindweave_harness.session import SessionStore, Session, SessionSettings
+    from mindweave_harness.session.session_restore import SessionRestorer
     config=load_config(ROOT);config=replace(config,context=replace(config.context,**{k:v for k,v in read(directory/'config.json')['context'].items()}),
         context_extraction=replace(config.context_extraction,enabled=False),context_retrieval=replace(config.context_retrieval,enabled=False),memory_retrieval=replace(config.memory_retrieval,enabled=False))
     engine=AgentEngine.restore(config,directory/'workspace',identity.lower())
@@ -187,8 +187,8 @@ def execute_case(out,identity,base):
 def execute(out):
     manifest=read(out/'manifest.json')
     if (out/'started.json').exists():raise RuntimeError('禁止重跑批次')
-    assert file_hashes(ROOT/'hexgent')==manifest['production_hashes'] and fingerprints()==manifest['historical_assets']
-    from hexgent.client import get_client,get_model
+    assert file_hashes(ROOT/'mindweave_harness')==manifest['production_hashes'] and fingerprints()==manifest['historical_assets']
+    from mindweave_harness.client import get_client,get_model
     client=get_client().with_options(max_retries=0);assert client.max_retries==0 and get_model()=='gpt-6.1-sol'
     assert urlsplit(str(client.base_url)).hostname in {'rightapi.ai','www.rightapi.ai'}
     save(out,'started.json',dict(started_at=datetime.now(timezone.utc).isoformat(),concurrency=3))
@@ -199,7 +199,7 @@ def execute(out):
             try:results.append(job.result())
             except BaseException as error:results.append(dict(id=jobs[job],status='EVAL_FAILURE',reason=str(error)))
             save(out,'execution-results.json',results)
-    save(out,'integrity.json',dict(production_unchanged=file_hashes(ROOT/'hexgent')==manifest['production_hashes'],historical_unchanged=fingerprints()==manifest['historical_assets'],model_main_calls=0))
+    save(out,'integrity.json',dict(production_unchanged=file_hashes(ROOT/'mindweave_harness')==manifest['production_hashes'],historical_unchanged=fingerprints()==manifest['historical_assets'],model_main_calls=0))
     print('BATCH_COMPLETE_AWAITING_INDEPENDENT_FACT_REVIEW',flush=True)
 
 def main():

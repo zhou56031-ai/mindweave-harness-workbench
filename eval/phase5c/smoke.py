@@ -9,10 +9,10 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any, Callable, Iterable
 
-from hexgent.agent_engine import AgentEngine
-from hexgent.client import get_client
-from hexgent.config import HexgentConfig
-from hexgent.memory.context_retrieval import ContextRetrievalLimits
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.client import get_client
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.memory.context_retrieval import ContextRetrievalLimits
 
 from eval.phase5.real_model import ObservedProductionClient
 
@@ -167,11 +167,11 @@ def _run_engine(
     workspace: Path,
     output_dir: Path,
     *,
-    config: HexgentConfig | None = None,
+    config: MindWeaveHarnessConfig | None = None,
     oracle_factory: Callable[[Path, dict[str, str], dict[str, Any], list[dict[str, Any]]], OracleResult] | None = None,
 ) -> tuple[SmokeRun, AgentEngine, Qualification | None]:
     before = workspace_manifest(workspace)
-    engine = AgentEngine.create(config or HexgentConfig(), workspace)
+    engine = AgentEngine.create(config or MindWeaveHarnessConfig(), workspace)
     client = ObservedProductionClient(get_client())
     exception: BaseException | None = None
     started = perf_counter()
@@ -305,7 +305,7 @@ def _run_l1(output_dir: Path) -> dict[str, Any]:
                 stage_b_spec,
                 stage_b_workspace,
                 output_dir / variant,
-                config=HexgentConfig(context_retrieval=ContextRetrievalLimits(enabled=enabled)),
+                config=MindWeaveHarnessConfig(context_retrieval=ContextRetrievalLimits(enabled=enabled)),
             )
             runs[variant] = run.to_dict()
     return {

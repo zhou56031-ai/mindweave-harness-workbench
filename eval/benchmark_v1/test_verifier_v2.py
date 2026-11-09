@@ -234,7 +234,7 @@ class VerifierV2Tests(unittest.TestCase):
 
     def test_t05_profile_explicit_without_causal_claim(self):
         c,_=load_remaining('t05-single',revision='f1')
-        self.assertEqual(c.scenario_config['measurement_scope'],'hexgent-memory-mechanism-specific')
+        self.assertEqual(c.scenario_config['measurement_scope'],'mindweave_harness-memory-mechanism-specific')
         self.assertIn('不测量必须依赖记忆',c.agent_visible().user_query)
         from .test_remaining_cases import RemainingTests
         helper=RemainingTests();self.addCleanup(helper.doCleanups);_,e=helper.memory_evidence()

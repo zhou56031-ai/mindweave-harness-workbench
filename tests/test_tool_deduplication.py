@@ -5,10 +5,10 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import unittest
 
-from hexgent.events import ToolFinishedEvent
-from hexgent.plan import InMemoryPlanStore
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.tool.tool_execution import execute_tool_batch, execute_tool_call
+from mindweave_harness.events import ToolFinishedEvent
+from mindweave_harness.plan import InMemoryPlanStore
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.tool.tool_execution import execute_tool_batch, execute_tool_call
 
 
 def drain_generator(generator):

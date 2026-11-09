@@ -2,7 +2,7 @@
 
 import unittest
 
-from hexgent.plan import Plan, PlanStep, review_plan_exit
+from mindweave_harness.plan import Plan, PlanStep, review_plan_exit
 
 
 class PlanExitTest(unittest.TestCase):

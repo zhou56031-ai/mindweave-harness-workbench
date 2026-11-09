@@ -8,22 +8,22 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from hexgent.events import (
+from mindweave_harness.events import (
     ToolBatchFinishedEvent,
     ToolBatchStartedEvent,
     ToolExecutionCompletedEvent,
     ToolFinishedEvent,
     ToolStartedEvent,
 )
-from hexgent.plan import InMemoryPlanStore
-from hexgent.run_control import RunControl
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.tool.tool_result import ToolExecutionResult
-from hexgent.tool.tool_scheduler import ToolParallelLimits
-from hexgent.tool.tool_registry import get_tool
+from mindweave_harness.plan import InMemoryPlanStore
+from mindweave_harness.run_control import RunControl
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.tool.tool_result import ToolExecutionResult
+from mindweave_harness.tool.tool_scheduler import ToolParallelLimits
+from mindweave_harness.tool.tool_registry import get_tool
 
 
-tool_execution_module = import_module("hexgent.tool.tool_execution")
+tool_execution_module = import_module("mindweave_harness.tool.tool_execution")
 
 
 def drain_generator(generator):

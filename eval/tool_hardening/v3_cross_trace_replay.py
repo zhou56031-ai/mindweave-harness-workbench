@@ -37,7 +37,7 @@ def main():
                     path = (workspace / path).resolve()
                     if not path.is_relative_to(workspace) or not path.is_file():
                         raise RuntimeError("NON_REPLAYABLE_READ_SCOPE")
-                    if ".hexgent" in path.parts:
+                    if ".mindweave_harness" in path.parts:
                         dependencies.append({"call_id": call["call_id"], "path": str(path), "sha256": digest(path)})
                 if not trace["permissions"][call["call_id"]] or any(
                     p["payload"].get("behavior") != "allow" for p in trace["permissions"][call["call_id"]]):

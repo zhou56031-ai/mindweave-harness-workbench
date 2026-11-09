@@ -3,7 +3,7 @@
 import unittest
 from typing import Any
 
-from hexgent.prompt import TOOLS
+from mindweave_harness.prompt import TOOLS
 
 
 class ToolSchemaTests(unittest.TestCase):

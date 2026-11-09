@@ -10,7 +10,7 @@ from typing import Callable
 
 from eval.phase1.observation import observation_from_session
 from eval.support.agent_contracts import run_trace, text_response, tool_call
-from hexgent.session import Session
+from mindweave_harness.session import Session
 
 from .observation import ToolPermissionObservation, tool_permission_observation
 

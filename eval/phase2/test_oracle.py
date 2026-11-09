@@ -9,7 +9,7 @@ from eval.phase2.oracle import (
     check_function_output_pairing,
     check_permission_gates_dispatch,
 )
-from hexgent.events import ToolFinishedEvent, ToolStartedEvent
+from mindweave_harness.events import ToolFinishedEvent, ToolStartedEvent
 
 
 class ToolPermissionOracleTest(unittest.TestCase):

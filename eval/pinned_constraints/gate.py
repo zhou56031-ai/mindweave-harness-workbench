@@ -6,13 +6,13 @@ from pathlib import Path
 import shutil
 from types import SimpleNamespace
 
-from hexgent.agent_engine import AgentEngine, RunRequest
-from hexgent.config import HexgentConfig
-from hexgent.context.context_compaction import compact_context_if_needed
-from hexgent.events import ToolFinishedEvent
-from hexgent.observation import source_fingerprint
-from hexgent.run_control import RunControl
-from hexgent.utils.token_estimator import estimate_request_tokens
+from mindweave_harness.agent_engine import AgentEngine, RunRequest
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.context.context_compaction import compact_context_if_needed
+from mindweave_harness.events import ToolFinishedEvent
+from mindweave_harness.observation import source_fingerprint
+from mindweave_harness.run_control import RunControl
+from mindweave_harness.utils.token_estimator import estimate_request_tokens
 from eval.memory_m1 import dump, tree_hash
 from eval.support.agent_contracts import FakeModel, text_response, tool_call
 
@@ -111,7 +111,7 @@ def source_oracle(rows,transcript):
 
 
 def config():
-    base=HexgentConfig()
+    base=MindWeaveHarnessConfig()
     return replace(base, context_extraction=replace(base.context_extraction,enabled=False),
         context_retrieval=replace(base.context_retrieval,enabled=False),
         memory_retrieval=replace(base.memory_retrieval,enabled=False))
@@ -154,12 +154,12 @@ def run_gate(output):
             work=target/variant/"workspace"
             shutil.copytree(baseline,work)
             snapshot_equal=tree_hash(work)==snapshot
-            initial_transcript=[json.loads(line) for line in (work/".hexgent/sessions"/sid/"transcript.jsonl").read_text().splitlines()]
+            initial_transcript=[json.loads(line) for line in (work/".mindweave_harness/sessions"/sid/"transcript.jsonl").read_text().splitlines()]
             active=AgentEngine.restore(cfg,work,sid)
             initial_files={p.name:p.read_text() for p in work.glob("*.md")}
             pre=dict(context=serial(active.context_manager.active_messages),plan=asdict(active.tool_context.plan_store.get_plan()) if active.tool_context.plan_store.get_plan() else None,
                 config=asdict(cfg),settings=asdict(active.session.settings),transcript=initial_transcript,
-                memory=tree_hash(work/".hexgent/memory"),records=[asdict(r) for r in active.session.context_records.records],snapshot_equal=snapshot_equal)
+                memory=tree_hash(work/".mindweave_harness/memory"),records=[asdict(r) for r in active.session.context_records.records],snapshot_equal=snapshot_equal)
             summaries=[]
             if scenario["summary"]:
                 summary_client=EvalClient([text_response("<summary>"+scenario["summary"]+"</summary>")],constraints,variant=="Pinned")

@@ -10,8 +10,8 @@ from urllib.parse import urlsplit
 from unittest.mock import patch
 import json
 
-from hexgent import observation
-from hexgent.context.context_compaction import COMPACTION_INSTRUCTIONS
+from mindweave_harness import observation
+from mindweave_harness.context.context_compaction import COMPACTION_INSTRUCTIONS
 from eval.context_management.c1_independent import plain
 from eval.context_management.c2_prep_2.control import Trace, TraceStream, BudgetDenied
 
@@ -61,7 +61,7 @@ class DispatchGuard:
     def instrument(self):
         # 2. 仅包裹实际 begin/end 入口；底层 Production 观测仍原样执行。
         with ExitStack() as stack:
-            for module in ('hexgent.context.context_compaction','hexgent.loop.call_model'):
+            for module in ('mindweave_harness.context.context_compaction','mindweave_harness.loop.call_model'):
                 stack.enter_context(patch(module+'.begin_span',self.begin))
                 stack.enter_context(patch(module+'.end_span',self.end))
             yield

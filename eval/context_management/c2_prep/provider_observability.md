@@ -1,6 +1,6 @@
 # Provider 观测准备
 
-Production Compaction 是独立 Responses 调用，与 MAIN 共用配置客户端和模型。`hexgent/context/context_compaction.py` 保存成功转换估算；`hexgent/observation.py` 按 span 保存 MAIN_AGENT/COMPACTION 与 attempt。`hexgent/run_report.py` 的累计 Usage 不能替代完整 Compaction 费用账本，失败、拒绝摘要成本需额外归集。
+Production Compaction 是独立 Responses 调用，与 MAIN 共用配置客户端和模型。`mindweave_harness/context/context_compaction.py` 保存成功转换估算；`mindweave_harness/observation.py` 按 span 保存 MAIN_AGENT/COMPACTION 与 attempt。`mindweave_harness/run_report.py` 的累计 Usage 不能替代完整 Compaction 费用账本，失败、拒绝摘要成本需额外归集。
 
 Eval 复用 `eval/tool_hardening/v3_provider.py` 的透明 Observer：保存完整请求、终态响应、原始 Usage、请求类型、耗时及失败原因，with_options/copy 共享账本，异常及流关闭向底层传播。C2 OfflineObserver 仅适配 Fake 对象序列化，不修改 Runtime。
 

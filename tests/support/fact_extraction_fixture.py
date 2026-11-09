@@ -5,7 +5,7 @@ calls 继续表示原 MAIN/SUMMARY 队列，extraction_calls 独立保存所有�
 """
 import json
 from types import SimpleNamespace
-from hexgent.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS
+from mindweave_harness.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS
 
 
 def extraction_event(owner, request):

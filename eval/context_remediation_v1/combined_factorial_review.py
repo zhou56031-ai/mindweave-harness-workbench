@@ -4,8 +4,8 @@ from hashlib import sha256
 import json
 import subprocess
 
-from hexgent.context.key_fact_snapshot import validate_snapshot,snapshot_message
-from hexgent.utils.token_estimator import estimate_value_tokens
+from mindweave_harness.context.key_fact_snapshot import validate_snapshot,snapshot_message
+from mindweave_harness.utils.token_estimator import estimate_value_tokens
 from .offline import ROOT,save
 from .factorial_pilot import check_integrity,file_hashes
 

@@ -111,10 +111,10 @@ def execute_case(destination, name):
     if a.returncode != CRASH_EXIT:
         return {"scenario": name, "status": "FAIL", "reason": "未到达目标进程退出边界", "process_a": {"returncode": a.returncode, "stdout": a.stdout, "stderr": a.stderr}}
     boundary = json.loads((root / "crash-boundary.json").read_text())
-    transcript_path = root / ".hexgent/sessions" / boundary["session_id"] / "transcript.jsonl"
+    transcript_path = root / ".mindweave_harness/sessions" / boundary["session_id"] / "transcript.jsonl"
     # 真实目录结构由 SessionStore 定义；只读取，不注入领域事实。
     if not transcript_path.exists():
-        candidates = list((root / ".hexgent").rglob("transcript.jsonl"))
+        candidates = list((root / ".mindweave_harness").rglob("transcript.jsonl"))
         if len(candidates) != 1:
             raise AssertionError("无法唯一定位真实 Transcript")
         transcript_path = candidates[0]

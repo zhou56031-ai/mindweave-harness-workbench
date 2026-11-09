@@ -16,11 +16,11 @@ from types import SimpleNamespace
 
 from eval.modules_v1.scenarios import drain
 from eval.support.agent_contracts import tool_call
-from hexgent.plan import InMemoryPlanStore
-from hexgent.session import Session, ToolResultLimits
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.tool.tool_registry import TOOL_REGISTRY
-from hexgent.tool.tool_scheduler import execute_tool_batch, ToolParallelLimits
+from mindweave_harness.plan import InMemoryPlanStore
+from mindweave_harness.session import Session, ToolResultLimits
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.tool.tool_registry import TOOL_REGISTRY
+from mindweave_harness.tool.tool_scheduler import execute_tool_batch, ToolParallelLimits
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -40,7 +40,7 @@ def validate_sources(manifest, protected):
             actual = sorted(str(p.relative_to(ROOT)) for p in ROOT.glob(call["arguments"]["pattern"]))
             if actual != call["expected_paths"]:
                 raise RuntimeError(f"INVALID_DISCOVERY_CHANGED: {call['call_id']}")
-    if {str(p.relative_to(ROOT)): digest(p) for p in (ROOT / "hexgent").rglob("*.py")} != protected:
+    if {str(p.relative_to(ROOT)): digest(p) for p in (ROOT / "mindweave_harness").rglob("*.py")} != protected:
         raise RuntimeError("INVALID_PRODUCTION_SOURCE_CHANGED")
 
 
@@ -160,7 +160,7 @@ def main():
     manifest_path = Path(__file__).with_name("V2_SOURCE_MANIFEST.json")
     manifest_hash = digest(manifest_path)
     manifest = json.loads(manifest_path.read_text())
-    protected = {str(p.relative_to(ROOT)): digest(p) for p in (ROOT / "hexgent").rglob("*.py")}
+    protected = {str(p.relative_to(ROOT)): digest(p) for p in (ROOT / "mindweave_harness").rglob("*.py")}
     validate_sources(manifest, protected)
     args.output_dir.mkdir(parents=True, exist_ok=False)
     report = {"status": "RUNNING", "manifest_path": str(manifest_path), "manifest_sha256": manifest_hash, "production_sha256": protected, "repeats": 20, "warmup_pairs": 1, "real_model_calls": 0, "timing_scope": "task includes four sequential Production batches with durable writes and per-batch content verification; excludes initialization and pre/post source hashing", "tasks": []}

@@ -14,9 +14,9 @@ from eval.support.agent_contracts import (
     text_response,
     tool_call,
 )
-from hexgent.agent_engine import AgentEngine
-from hexgent.config import HexgentConfig
-from hexgent.session import Session
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.session import Session
 
 
 Outcome = Literal["PASS", "FAIL", "RECOVERY_GAP"]
@@ -103,9 +103,9 @@ def _run_with_crash(
 
     pre_crash_records = tuple(trace.transcript)
     session_id = session.store.session_id
-    first = AgentEngine.restore(HexgentConfig(), root, session_id)
+    first = AgentEngine.restore(MindWeaveHarnessConfig(), root, session_id)
     first_outputs = _function_outputs(first.context_manager.active_messages, call_id)
-    second = AgentEngine.restore(HexgentConfig(), root, session_id)
+    second = AgentEngine.restore(MindWeaveHarnessConfig(), root, session_id)
     repeated_outputs = _function_outputs(second.context_manager.active_messages, call_id)
     final_records = tuple(second.session.store.read_transcript())
     return RecoveryObservation(

@@ -134,7 +134,7 @@ class ProductionTraceTests(TestCase):
                 rounds.append(dict(query=m['text'],messages=plain(response('已核对').output)))
             original=StreamRecorder.create
             def fake(obj,**request):
-                from hexgent.context.context_compaction import COMPACTION_INSTRUCTIONS
+                from mindweave_harness.context.context_compaction import COMPACTION_INSTRUCTIONS
                 if request['instructions'].startswith(COMPACTION_INSTRUCTIONS):
                     if summary:
                         value=summary.pop(0)
@@ -156,14 +156,14 @@ class ProductionTraceTests(TestCase):
     def test_timeout_then_success(self):
         self.execute([TimeoutError('offline timeout')])
     def test_production_budget_zero_dispatch(self):
-        from hexgent.agent_engine import AgentEngine
+        from mindweave_harness.agent_engine import AgentEngine
         with TemporaryDirectory() as tmp:
             root=Path(tmp); cfg=Gate(root).config()
             cfg=replace(cfg,loop=replace(cfg.loop,max_output_tokens_per_round=200000))
             engine=AgentEngine(cfg,root/'workspace')
             delegate=SimpleNamespace(responses=StreamRecorder({'requests':[]}),max_retries=0)
             trace=Trace(delegate,root/'trace.json',Budget(fake_policy(),lambda r:50),eval_run_id='budget',fixture_id='ZERO',session=engine.session)
-            with patch('hexgent.loop.agent_turn.get_model',return_value='FAKE_ONLY'):
+            with patch('mindweave_harness.loop.agent_turn.get_model',return_value='FAKE_ONLY'):
                 events=list(engine.run('继续',client=trace))
             self.assertEqual(trace.state['calls'],[])
             self.assertIn('CONTEXT_BUDGET_EXCEEDED',events[-1].result.output_text)

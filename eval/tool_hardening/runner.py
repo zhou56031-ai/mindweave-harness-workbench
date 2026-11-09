@@ -17,20 +17,20 @@ from unittest.mock import patch
 from eval.modules_v1.scenarios import drain
 from eval.phase5.scenarios import _base_config
 from eval.support.agent_contracts import run_trace, text_response, tool_call
-from hexgent.plan import InMemoryPlanStore
-from hexgent.session import Session
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.tool.tool_registry import TOOL_REGISTRY
-from hexgent.tool.tool_registry import RegisteredTool
-from hexgent.tool.tool_result import ToolHandlerResult
-from hexgent.tool.tool_validation import TOOL_SCHEMAS
-from hexgent.tool.tool_scheduler import execute_tool_batch, ToolParallelLimits
+from mindweave_harness.plan import InMemoryPlanStore
+from mindweave_harness.session import Session
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.tool.tool_registry import TOOL_REGISTRY
+from mindweave_harness.tool.tool_registry import RegisteredTool
+from mindweave_harness.tool.tool_result import ToolHandlerResult
+from mindweave_harness.tool.tool_validation import TOOL_SCHEMAS
+from mindweave_harness.tool.tool_scheduler import execute_tool_batch, ToolParallelLimits
 
 ROOT = Path(__file__).resolve().parents[2]
 TASKS = {
-    "tool_pipeline_audit": ["hexgent/tool/tool_scheduler.py", "hexgent/tool/tool_execution.py", "hexgent/tool/tool_registry.py", "hexgent/tool/builtin_tools.py"],
-    "recovery_checkpoint_audit": ["hexgent/session/session_restore.py", "hexgent/session/checkpoint.py", "hexgent/session/tool_call_recovery.py", "hexgent/session/session_store.py"],
-    "memory_context_audit": ["hexgent/memory/context_records.py", "hexgent/memory/context_retrieval.py", "hexgent/memory/memory_store.py", "hexgent/context/context_manager.py"],
+    "tool_pipeline_audit": ["mindweave_harness/tool/tool_scheduler.py", "mindweave_harness/tool/tool_execution.py", "mindweave_harness/tool/tool_registry.py", "mindweave_harness/tool/builtin_tools.py"],
+    "recovery_checkpoint_audit": ["mindweave_harness/session/session_restore.py", "mindweave_harness/session/checkpoint.py", "mindweave_harness/session/tool_call_recovery.py", "mindweave_harness/session/session_store.py"],
+    "memory_context_audit": ["mindweave_harness/memory/context_records.py", "mindweave_harness/memory/context_retrieval.py", "mindweave_harness/memory/memory_store.py", "mindweave_harness/context/context_manager.py"],
 }
 
 
@@ -164,7 +164,7 @@ def late_result():
                 release.set()
                 # 等待线程真正退出，而不仅是工具函数准备返回。
                 for thread in threading.enumerate():
-                    if thread.name.startswith("hexgent-tool"):
+                    if thread.name.startswith("mindweave_harness-tool"):
                         thread.join(timeout=5)
                 after = session.store.read_transcript()
         finally:

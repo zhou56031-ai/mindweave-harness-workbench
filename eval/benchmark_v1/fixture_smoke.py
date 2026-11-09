@@ -26,7 +26,7 @@ def archive_manifest(root,workdir,contract,trial_id,run_config):
     environment=SimpleNamespace(workdir=workdir)
     trace=audit(environment);sessions=[]
     for sid,_ in records(environment):
-        source=workdir/'.hexgent/sessions'/sid;target=root/'sessions'/sid
+        source=workdir/'.mindweave_harness/sessions'/sid;target=root/'sessions'/sid
         shutil.copytree(source,target,dirs_exist_ok=True)
         dump(target/'provider-usage.json',[u for u in trace['usage'] if u['session_id']==sid])
         sessions.append(SessionArtifacts(session_id=sid,transcript=ArtifactReference(path=f'sessions/{sid}/transcript.jsonl'),run_reports=tuple(ArtifactReference(path=str(p.relative_to(root))) for p in sorted((target/'reports').glob('run-*.json'))),provider_usage=(ArtifactReference(path=f'sessions/{sid}/provider-usage.json'),)))
@@ -34,8 +34,8 @@ def archive_manifest(root,workdir,contract,trial_id,run_config):
     dump(root/'provider-usage.json',{'records':trace['usage'],'known_tokens':known_tokens(trace['usage']),'harness_recorded_usage_complete':bool(trace['usage']) and all(u.get('usage') and u['usage'].get('input_tokens') is not None and u['usage'].get('output_tokens') is not None for u in trace['usage']),'unreported_failed_or_sdk_retry_usage':'UNKNOWN'})
     if not sessions:return None,trace
     production=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
-    from hexgent.observation import source_fingerprint
-    manifest=TrialManifest(schema_version=1,suite_id=contract.suite_id,task_id=contract.task_id,case_id=contract.case_id,trial_id=trial_id,environment_kind=contract.environment_kind,phase=run_config.get('phase','protocol_smoke'),baseline_id=contract.baseline_id,verifier_version=contract.verifier_spec.verifier_version,task_contract_sha256=contract.digest(),contract=ArtifactReference(path='contract.json'),run_config=run_config,code_versions={'hexgent_commit':production,'runtime_source_sha256':source_fingerprint(),'fixture_adapter_sha256':run_config.get('eval_sources_at_start',{}).get('fixture_agent.py',sha256(Path(__file__).with_name('fixture_agent.py').read_bytes()).hexdigest()),'fixture_server_sha256':sha256(Path(__file__).with_name('business_fixture.py').read_bytes()).hexdigest(),'verifier_sha256':sha256(Path(__file__).with_name('remaining_verifier.py').read_bytes()).hexdigest(),'smoke_sha256':sha256(Path(__file__).read_bytes()).hexdigest()},sessions=tuple(sessions))
+    from mindweave_harness.observation import source_fingerprint
+    manifest=TrialManifest(schema_version=1,suite_id=contract.suite_id,task_id=contract.task_id,case_id=contract.case_id,trial_id=trial_id,environment_kind=contract.environment_kind,phase=run_config.get('phase','protocol_smoke'),baseline_id=contract.baseline_id,verifier_version=contract.verifier_spec.verifier_version,task_contract_sha256=contract.digest(),contract=ArtifactReference(path='contract.json'),run_config=run_config,code_versions={'mindweave_harness_commit':production,'runtime_source_sha256':source_fingerprint(),'fixture_adapter_sha256':run_config.get('eval_sources_at_start',{}).get('fixture_agent.py',sha256(Path(__file__).with_name('fixture_agent.py').read_bytes()).hexdigest()),'fixture_server_sha256':sha256(Path(__file__).with_name('business_fixture.py').read_bytes()).hexdigest(),'verifier_sha256':sha256(Path(__file__).with_name('remaining_verifier.py').read_bytes()).hexdigest(),'smoke_sha256':sha256(Path(__file__).read_bytes()).hexdigest()},sessions=tuple(sessions))
     if contract.verifier_spec.verifier_version=='2':
         manifest=manifest.model_copy(update={'code_versions':{**manifest.code_versions,
             'verifier_v2_sha256':sha256(Path(__file__).with_name('verifier_v2.py').read_bytes()).hexdigest()}})
@@ -105,10 +105,10 @@ def main():
                 snapshot=fixture.observe()
                 child.kill();child.wait(10)
                 sid=json.loads((root/'agent-session.json').read_text())['session_id']
-                cps=sorted((workdir/'.hexgent/sessions'/sid/'checkpoints').glob('*.json'))
+                cps=sorted((workdir/'.mindweave_harness/sessions'/sid/'checkpoints').glob('*.json'))
                 if cps:
                     cp=json.loads(cps[-1].read_text());digest=cp.pop('checksum')
-                    from hexgent.session.checkpoint import _checksum
+                    from mindweave_harness.session.checkpoint import _checksum
                     checkpoint={'session_id':cp['session_id'],'checkpoint_id':cp['checkpoint_id'],'checksum_valid':_checksum(cp)==digest,'source':str(cps[-1].relative_to(workdir)),'run_state':cp.get('run_state')}
                 crash={'signal':'SIGKILL','returncode':child.returncode,'pid':child.pid,'session_id':sid,'boundary':'sqlite_transaction_committed_before_http_response','committed_count_at_cut':len(snapshot['operations'])}
                 prefix=[r for _,rs in records(SimpleNamespace(workdir=workdir)) for r in rs]

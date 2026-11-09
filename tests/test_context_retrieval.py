@@ -5,11 +5,11 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
-from hexgent.agent_engine import AgentEngine
-from hexgent.config import HexgentConfig
-from hexgent.context import ContextManager, build_context
-from hexgent.loop.loop_state import RunStateSnapshot
-from hexgent.memory import (
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.context import ContextManager, build_context
+from mindweave_harness.loop.loop_state import RunStateSnapshot
+from mindweave_harness.memory import (
     ContextRecordInput,
     ContextRecordRetriever,
     ContextRecordStore,
@@ -95,7 +95,7 @@ class ContextRetrievalTest(unittest.TestCase):
         """新 Query 应在调用 Agent Loop 前完成召回并注入 instructions。"""
         with TemporaryDirectory() as directory:
             root = Path(directory)
-            engine = AgentEngine.create(HexgentConfig(context_retrieval=ContextRetrievalLimits(enabled=True)), root)
+            engine = AgentEngine.create(MindWeaveHarnessConfig(context_retrieval=ContextRetrievalLimits(enabled=True)), root)
             source_query = engine.context_manager.append_user_query("确认恢复设计")
             engine.session.record_user_query(source_query)
             engine.upsert_context_records(
@@ -108,7 +108,7 @@ class ContextRetrievalTest(unittest.TestCase):
                 ]
             )
 
-            with patch("hexgent.agent_engine.agent_loop", return_value=iter(())) as loop:
+            with patch("mindweave_harness.agent_engine.agent_loop", return_value=iter(())) as loop:
                 list(engine.run("继续优化 Session 的恢复设计"))
 
             (state,) = loop.call_args.args

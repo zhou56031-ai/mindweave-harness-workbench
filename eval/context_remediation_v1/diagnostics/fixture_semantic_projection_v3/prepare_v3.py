@@ -5,7 +5,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-ROOT = Path('/Users/hector/dev/hexgent')
+ROOT = Path('/Users/hector/dev/mindweave_harness')
 OUT = Path(__file__).resolve().parent
 BASE = OUT.parent / 'fixture_semantic_projection_v2'
 OBJECTS = ['failure_recovery', 'permission_handling', 'other_runtime_behaviors']
@@ -84,7 +84,7 @@ def main():
     assert read(BASE/'manual_review_findings.json')['manual_original49_pass']==48
     save(OUT/'manifest.json',dict(created_at=datetime.now(timezone.utc).isoformat(),old_gate='REFERENCE_RULES_ADVERSARIAL_FAIL',v2_gate=read(BASE/'manual_review_findings.json')['gate'],
         v1_hashes=hashes(old),v2_hashes=hashes(BASE),cross_hashes=hashes(OUT.parent/'cross_run_reference_audit'),
-        production_hashes=hashes(ROOT/'hexgent'),historical_hashes=read(BASE/'manifest.json')['frozen_assets'],
+        production_hashes=hashes(ROOT/'mindweave_harness'),historical_hashes=read(BASE/'manifest.json')['frozen_assets'],
         frozen_files=hashes(OUT),expected_frozen_before_tests=True,original_count=49,v2_variant_count=8,v3_variant_count=len(variants),model_calls=0,network_calls=0))
     print('PREPARED_EXPECTATIONS_FROZEN')
 

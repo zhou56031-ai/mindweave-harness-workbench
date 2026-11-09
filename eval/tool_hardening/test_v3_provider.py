@@ -58,7 +58,7 @@ class ProviderTests(unittest.TestCase):
         self.assertIsNone(row['input_tokens'])
 
     def test_options_forwarded_and_shared_auxiliary_observation(self):
-        from hexgent.memory.memory_prompts import CONTEXT_RECORD_EXTRACTION_INSTRUCTIONS
+        from mindweave_harness.memory.memory_prompts import CONTEXT_RECORD_EXTRACTION_INSTRUCTIONS
         scoped = Mock(base_url="https://provider.invalid")
         self.client.with_options.return_value = scoped
         scoped.responses.create.return_value = Stream([self.terminal({"input_tokens": 4, "output_tokens": 2})])

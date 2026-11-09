@@ -1,8 +1,8 @@
-"""Hexgent 的向后兼容启动入口。"""
+"""MindWeave Harness 的向后兼容启动入口。"""
 
-from hexgent.config import ConfigError
+from mindweave_harness.config import ConfigError
 
-from hexgent.agent_engine import main
+from mindweave_harness.agent_engine import main
 
 
 if __name__ == "__main__":

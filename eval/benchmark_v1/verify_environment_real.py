@@ -69,18 +69,18 @@ def main():
             response=httpx.post(e.endpoints['runtime']+'/api/sessions', json={'permission_mode':'dont_ask'},
                                 timeout=15, trust_env=False)
             response.raise_for_status(); session_id=response.json()['session_id']; session_ids.append(session_id)
-            memory=e.workdir/'.hexgent/memory'; memory.mkdir(parents=True, exist_ok=True)
+            memory=e.workdir/'.mindweave_harness/memory'; memory.mkdir(parents=True, exist_ok=True)
             (memory/'isolation-marker.txt').write_text(e.trial_id)
-            checkpoints=e.workdir/'.hexgent/sessions'/session_id/'checkpoints'
+            checkpoints=e.workdir/'.mindweave_harness/sessions'/session_id/'checkpoints'
             checkpoints.mkdir(parents=True, exist_ok=True)
             (checkpoints/'isolation-marker.json').write_text(json.dumps({'trial_id':e.trial_id}))
             container=json.loads(manager.docker.run(['container','inspect',manager._container(e,'runtime')]))[0]
             mount=next(m for m in container['Mounts'] if m['Destination']=='/workdir')
             if Path(mount['Source']).resolve()!=e.workdir.resolve(): raise AssertionError('Runtime workdir 挂载不匹配')
-            transcript=e.workdir/'.hexgent/sessions'/session_id/'transcript.jsonl'
+            transcript=e.workdir/'.mindweave_harness/sessions'/session_id/'transcript.jsonl'
             if not transcript.is_file(): raise AssertionError('真实 Session Transcript 未生成')
         if a.workdir==b.workdir or session_ids[0]==session_ids[1]: raise AssertionError('本地状态路径未隔离')
-        if (b.workdir/'.hexgent/memory/isolation-marker.txt').read_text()!='isolation-b': raise AssertionError('Memory 路径污染')
+        if (b.workdir/'.mindweave_harness/memory/isolation-marker.txt').read_text()!='isolation-b': raise AssertionError('Memory 路径污染')
         report['cases']['D']={'status':'PASS', 'agent_execution':'NOT RUN',
             'session_ids':session_ids, 'workdirs':[str(a.workdir),str(b.workdir)],
             'checkpoint_note':'仅验证路径；marker 不是生产 Checkpoint 的恢复证据'}

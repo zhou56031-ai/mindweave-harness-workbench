@@ -4,17 +4,17 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from hexgent.agent_engine import AgentEngine, RunRequest
-from hexgent.config import HexgentConfig
-from hexgent.context import build_context
-from hexgent.context.context_builder import build_context_details
-from hexgent.utils.token_estimator import estimate_value_tokens
-from hexgent.memory import MemoryRetriever, MemoryStore
-from hexgent.memory import RetrievedContextRecord, RetrievedMemory
-from hexgent.tool.memory_tools import remember
-from hexgent.plan import InMemoryPlanStore
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.skill import SkillDefinition
+from mindweave_harness.agent_engine import AgentEngine, RunRequest
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.context import build_context
+from mindweave_harness.context.context_builder import build_context_details
+from mindweave_harness.utils.token_estimator import estimate_value_tokens
+from mindweave_harness.memory import MemoryRetriever, MemoryStore
+from mindweave_harness.memory import RetrievedContextRecord, RetrievedMemory
+from mindweave_harness.tool.memory_tools import remember
+from mindweave_harness.plan import InMemoryPlanStore
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.skill import SkillDefinition
 
 
 class MemoryTest(unittest.TestCase):
@@ -42,7 +42,7 @@ class MemoryTest(unittest.TestCase):
         """新 submit 词法召回跨 Session Memory，并固定进入模型上下文。"""
         store = MemoryStore(self.workdir)
         store.upsert("所有代码注释使用中文", "preference", keywords=["代码", "注释", "中文"], source="explicit")
-        engine = AgentEngine(HexgentConfig(), self.workdir, memory_store=store)
+        engine = AgentEngine(MindWeaveHarnessConfig(), self.workdir, memory_store=store)
         state = engine._build_run_state(RunRequest.submit("请给这个代码补充中文注释"), engine.config)
         self.assertEqual(len(state.relevant_memory), 1)
         self.assertIn("<relevant-memory>", build_context(
@@ -115,10 +115,10 @@ class MemoryTest(unittest.TestCase):
 
     def test_legacy_single_file_is_migrated_to_authoritative_items(self) -> None:
         """首次加载旧版单文件时，保留事实并生成新的索引与条目文件。"""
-        directory = self.workdir / ".hexgent" / "memory"
+        directory = self.workdir / ".mindweave_harness" / "memory"
         directory.mkdir(parents=True)
         directory.joinpath("MEMORY.md").write_text(
-            """# Hexgent Memory
+            """# MindWeave Harness Memory
 
 ## Preferences
 
@@ -135,7 +135,7 @@ class MemoryTest(unittest.TestCase):
 
 ## Decisions
 
-<!-- hexgent-memory-state: {\"processed_context_record_ids\":[\"ctx-001\"]} -->
+<!-- mindweave_harness-memory-state: {\"processed_context_record_ids\":[\"ctx-001\"]} -->
 """,
             encoding="utf-8",
         )

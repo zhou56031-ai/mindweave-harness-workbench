@@ -1,6 +1,6 @@
-# Hexgent Web 前端
+# MindWeave Harness Web 前端
 
-React + TypeScript + Vite 实现的 Hexgent Agent Workspace。前端直接通过 HTTP 和
+React + TypeScript + Vite 实现的 MindWeave Harness Agent Workspace。前端直接通过 HTTP 和
 SSE 访问 FastAPI，不代理 `/api`。
 
 ## 开发启动
@@ -8,7 +8,7 @@ SSE 访问 FastAPI，不代理 `/api`。
 先在仓库根目录启动 Web Adapter：
 
 ```bash
-uv run uvicorn hexgent.adapters.web.app:create_app --factory --reload --port 8000
+uv run uvicorn mindweave_harness.adapters.web.app:create_app --factory --reload --port 8000
 ```
 
 再启动前端：
@@ -23,13 +23,13 @@ npm run dev
 前端构建环境中配置：
 
 ```bash
-VITE_API_BASE_URL=https://api.hexgent.example
+VITE_API_BASE_URL=https://api.mindweave_harness.example
 ```
 
 后端允许的前端来源使用以下环境变量配置，多个来源以英文逗号分隔：
 
 ```bash
-HEXGENT_CORS_ALLOWED_ORIGINS=https://app.hexgent.example
+MINDWEAVE_CORS_ALLOWED_ORIGINS=https://app.mindweave_harness.example
 ```
 
 ## 代码边界

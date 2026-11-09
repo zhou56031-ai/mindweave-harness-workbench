@@ -6,9 +6,9 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
-from hexgent.plan import InMemoryPlanStore
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.tool.tool_execution import execute_tool_call
+from mindweave_harness.plan import InMemoryPlanStore
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.tool.tool_execution import execute_tool_call
 
 from .observation import project_transcript
 from . import restricted_bash as restricted_bash_module

@@ -25,7 +25,7 @@ No Memory Retrieval仅关闭召回，不禁用remember和Memory写入。T05 sing
 
 ## 执行方法
 
-以下命令仅为用法，本轮没有执行真实模型。工作目录为Hexgent仓库。配置文件中的凭证不复制到报告。
+以下命令仅为用法，本轮没有执行真实模型。工作目录为MindWeave Harness仓库。配置文件中的凭证不复制到报告。
 
 先为目标Variant执行对应Case的新版Smoke，三个入口均新增 `--variant`：
 
@@ -93,4 +93,4 @@ git diff --check
 
 原有“缺少新版Smoke拒绝回退”测试改用临时空目录，移除对本地真实产物是否存在的依赖，仍验证相同规则。
 
-修复前后Production `hexgent/` 与历史 `runs/`（排除__pycache__）组合摘要一致：10,748文件，SHA-256 `d2855d18388bdd067b775b250e2df8567c388b67a472e0a1c1d0afe4d79fa230`。未运行真实Provider、Docker或外部业务API，未改HexWorkspace，未提交代码。已有未提交改动保留。
+修复前后Production `mindweave_harness/` 与历史 `runs/`（排除__pycache__）组合摘要一致：10,748文件，SHA-256 `d2855d18388bdd067b775b250e2df8567c388b67a472e0a1c1d0afe4d79fa230`。未运行真实Provider、Docker或外部业务API，未改HexWorkspace，未提交代码。已有未提交改动保留。

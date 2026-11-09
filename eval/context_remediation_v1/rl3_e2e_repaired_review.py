@@ -4,7 +4,7 @@ from pathlib import Path
 from hashlib import sha256
 from .offline import ROOT, fingerprints
 from .factorial_pilot import file_hashes
-from hexgent.context.context_manager import _request_message
+from mindweave_harness.context.context_manager import _request_message
 
 OUT=ROOT/'eval/context_remediation_v1/runs/rl3-e2e-real-20261012-logprobs-fix'
 OLD=ROOT/'eval/context_remediation_v1/runs/rl3-e2e-real-20261012-v1'
@@ -68,7 +68,7 @@ def main():
         publication_metrics=outcome['boundary']['publication_metrics'])
     save('independent-review.json',result)
     integrity=read(OUT,'integrity.json')
-    assert manifest['production_hashes']==file_hashes(ROOT/'hexgent') and manifest['frozen_hashes']==fingerprints()
+    assert manifest['production_hashes']==file_hashes(ROOT/'mindweave_harness') and manifest['frozen_hashes']==fingerprints()
     save('review-integrity.json',dict(production_unchanged_during_run=True,frozen_assets_unchanged=True,
         extractor_request_identical_to_failed_attempt=True,summary_diff_only_null_logprobs_to_array=True,
         original_failure_preserved=True,git_diff_check=integrity['git_diff_check']))

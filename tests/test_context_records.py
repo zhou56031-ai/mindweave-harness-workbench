@@ -5,10 +5,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from hexgent.agent_engine import AgentEngine
-from hexgent.config import HexgentConfig
-from hexgent.context import ContextManager
-from hexgent.session import (
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.context import ContextManager
+from mindweave_harness.session import (
     ContextRecordInput,
     Session,
     SessionRestorer,
@@ -95,12 +95,12 @@ class ContextRecordTest(unittest.TestCase):
         """外部入口应通过 Engine 访问记录，而不是直接操作 Session 内部。"""
         with TemporaryDirectory() as directory:
             root = Path(directory)
-            engine = AgentEngine.create(HexgentConfig(), root)
+            engine = AgentEngine.create(MindWeaveHarnessConfig(), root)
             query = engine.context_manager.append_user_query("记录一条项目事实")
             engine.session.record_user_query(query)
 
             mutations = engine.upsert_context_records(
-                [ContextRecordInput("当前工作区是 Hexgent 项目。", "fact", (3,))]
+                [ContextRecordInput("当前工作区是 MindWeave Harness 项目。", "fact", (3,))]
             )
 
         self.assertEqual([mutation.action for mutation in mutations], ["created"])

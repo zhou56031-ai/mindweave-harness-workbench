@@ -15,7 +15,7 @@ from .prepare import ROOT,read_json,ORDER
 from .runner import policy,execute,validate_capacity
 from eval.context_management.c2_prep_2.control import BudgetDenied
 from eval.context_management.c2_prep.prepare import StreamRecorder
-from hexgent.context.context_compaction import COMPACTION_INSTRUCTIONS
+from mindweave_harness.context.context_compaction import COMPACTION_INSTRUCTIONS
 
 
 def small_policy(**changes):
@@ -142,7 +142,7 @@ class TraceTests(unittest.TestCase):
         wires=[]
         def handler(request):wires.append(request);return httpx.Response(500,json={'error':{'message':'offline fault'}})
         sdk=OpenAI(api_key='OFFLINE-NOT-SECRET',base_url='https://offline.invalid/v1',http_client=httpx.Client(transport=httpx.MockTransport(handler)))
-        from hexgent.observation import RunObservation,current_observation,begin_span,end_span
+        from mindweave_harness.observation import RunObservation,current_observation,begin_span,end_span
         with TemporaryDirectory() as tmp:
             store=SimpleNamespace(session_dir=Path(tmp),session_id='S'); session=SimpleNamespace(store=store,_active_run_id='R')
             observation=RunObservation(store); token=current_observation.set(observation)

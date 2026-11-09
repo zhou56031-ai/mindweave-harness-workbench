@@ -3,10 +3,10 @@ import pathlib
 import unittest
 from unittest.mock import patch
 
-from hexgent.integration.capability import CapabilityResult
-from hexgent.prompt import TOOLS
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.tool.tool_execution import execute_tool_call
+from mindweave_harness.integration.capability import CapabilityResult
+from mindweave_harness.prompt import TOOLS
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.tool.tool_execution import execute_tool_call
 
 
 class _PlanStore:
@@ -46,7 +46,7 @@ class UpdateDocumentWorkspaceCapabilityTest(unittest.TestCase):
         self.assertIn("VERSION_CONFLICT", tool["description"])
         self.assertIn("expectedVersionId", tool["description"])
 
-    @patch("hexgent.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
+    @patch("mindweave_harness.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
     def test_success_preserves_workspace_run_and_original_call_identity(self, invoke):
         invoke.return_value = CapabilityResult(
             "v1",
@@ -73,7 +73,7 @@ class UpdateDocumentWorkspaceCapabilityTest(unittest.TestCase):
             {"documentId": 11, "expectedVersionId": 3, "content": "updated markdown"},
         )
 
-    @patch("hexgent.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
+    @patch("mindweave_harness.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
     def test_denied_result_is_model_visible_and_does_not_retry(self, invoke):
         invoke.return_value = CapabilityResult(
             "v1",
@@ -97,7 +97,7 @@ class UpdateDocumentWorkspaceCapabilityTest(unittest.TestCase):
         self.assertEqual(1, result.attempt_count)
         invoke.assert_called_once()
 
-    @patch("hexgent.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
+    @patch("mindweave_harness.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
     def test_version_conflict_pending_and_idempotency_failures_are_visible(self, invoke):
         for error_code in (
             "VERSION_CONFLICT",
@@ -129,7 +129,7 @@ class UpdateDocumentWorkspaceCapabilityTest(unittest.TestCase):
                 self.assertEqual(1, result.attempt_count)
                 invoke.assert_called_once()
 
-    @patch("hexgent.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
+    @patch("mindweave_harness.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
     def test_workspace_write_permission_pipeline_can_deny_before_client(self, invoke):
         result = execute_tool_call(
             "update_document",

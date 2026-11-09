@@ -7,14 +7,14 @@ from pathlib import Path
 import shutil
 from types import SimpleNamespace
 
-from hexgent.agent_engine import AgentEngine, RunRequest
-from hexgent.config import HexgentConfig
-from hexgent.events import ToolFinishedEvent
-from hexgent.memory import ContextRecordInput
-from hexgent.memory.context_record_extraction import ContextExtractionLimits
-from hexgent.observation import source_fingerprint
-from hexgent.run_control import RunControl
-from hexgent.session.checkpoint import CheckpointStore
+from mindweave_harness.agent_engine import AgentEngine, RunRequest
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.events import ToolFinishedEvent
+from mindweave_harness.memory import ContextRecordInput
+from mindweave_harness.memory.context_record_extraction import ContextExtractionLimits
+from mindweave_harness.observation import source_fingerprint
+from mindweave_harness.run_control import RunControl
+from mindweave_harness.session.checkpoint import CheckpointStore
 from eval.memory_m1 import dump, tree_hash
 from eval.support.agent_contracts import FakeModel, text_response, tool_call
 
@@ -51,7 +51,7 @@ class OfflineClient:
 
 
 def config(enabled=True):
-    base = HexgentConfig()
+    base = MindWeaveHarnessConfig()
     return replace(base, context_extraction=ContextExtractionLimits(turn_interval=1),
                    context_retrieval=replace(base.context_retrieval, enabled=enabled),
                    memory_retrieval=replace(base.memory_retrieval, enabled=False))
@@ -99,7 +99,7 @@ def run_gate(output):
         same = tree_hash(clone) == snapshot
         active = AgentEngine.restore(config(variant == "ON"), clone, session_id)
         pre = dict(snapshot_same=same, records=[asdict(r) for r in active.session.context_records.records],
-                   memory=tree_hash(clone / ".hexgent/memory"), settings=asdict(active.session.settings), config=asdict(active.config))
+                   memory=tree_hash(clone / ".mindweave_harness/memory"), settings=asdict(active.session.settings), config=asdict(active.config))
         dump(output / variant / "precheck.json", pre)
         result = run(active, "Nerul-X7 的当前端口是什么？允许正常历史和工具回读。", OfflineClient([
             text_response(output=[tool_call("reread", "read_file", '{"path":"fact.txt"}')]), text_response("48317")]), output / variant / "execution")

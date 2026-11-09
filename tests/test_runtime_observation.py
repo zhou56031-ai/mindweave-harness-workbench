@@ -9,7 +9,7 @@ from unittest.mock import patch
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 
-from hexgent.observation import RunObservation, begin_span, end_span, observed_handler, summarize
+from mindweave_harness.observation import RunObservation, begin_span, end_span, observed_handler, summarize
 
 
 class RuntimeObservationTests(unittest.TestCase):
@@ -43,7 +43,7 @@ class RuntimeObservationTests(unittest.TestCase):
 
     def test_observation_failure_does_not_change_handler_return(self):
         sink = RunObservation(SimpleNamespace(session_dir=Path("/unused")))
-        with patch.object(Path, "mkdir", side_effect=OSError("fixture")), self.assertLogs("hexgent.observation"):
+        with patch.object(Path, "mkdir", side_effect=OSError("fixture")), self.assertLogs("mindweave_harness.observation"):
             result = observed_handler(lambda args, context: "original", {},
                 SimpleNamespace(observation=sink), "call-1", 1, "test")
         self.assertEqual(result, "original")

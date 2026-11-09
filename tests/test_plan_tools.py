@@ -4,9 +4,9 @@ import json
 from pathlib import Path
 import unittest
 
-from hexgent.plan import InMemoryPlanStore
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.tool.tool_execution import execute_tool_call
+from mindweave_harness.plan import InMemoryPlanStore
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.tool.tool_execution import execute_tool_call
 
 
 def make_step(

@@ -8,20 +8,20 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from hexgent.config import HexgentConfig, RunOptions, load_config
-from hexgent.agent_engine import AgentEngine
-from hexgent.context import ContextManager
-from hexgent.events import AgentLoopResult
-import hexgent.loop.agent_loop as agent_loop_module
-from hexgent.loop.extract_context_records import extract_context_records
-from hexgent.loop.loop_state import LoopState
-from hexgent.loop.transitions import Stop
-from hexgent.memory import ContextRecordInput
-from hexgent.memory.context_record_extraction import (
+from mindweave_harness.config import MindWeaveHarnessConfig, RunOptions, load_config
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.context import ContextManager
+from mindweave_harness.events import AgentLoopResult
+import mindweave_harness.loop.agent_loop as agent_loop_module
+from mindweave_harness.loop.extract_context_records import extract_context_records
+from mindweave_harness.loop.loop_state import LoopState
+from mindweave_harness.loop.transitions import Stop
+from mindweave_harness.memory import ContextRecordInput
+from mindweave_harness.memory.context_record_extraction import (
     ContextExtractionLimits, prepare_extraction, parse_candidates,
 )
-from hexgent.run_control import InterruptController
-from hexgent.session import CheckpointStore, Session, SessionRestorer
+from mindweave_harness.run_control import InterruptController
+from mindweave_harness.session import CheckpointStore, Session, SessionRestorer
 
 
 class ContextRecordExtractionTest(unittest.TestCase):
@@ -109,7 +109,7 @@ class ContextRecordExtractionTest(unittest.TestCase):
 
     def test_extraction_commits_and_accounts_usage(self):
         """完整响应校验成功后才提交候选，提取消耗可独立统计。"""
-        with patch("hexgent.loop.extract_context_records.get_model", return_value="模拟模型"):
+        with patch("mindweave_harness.loop.extract_context_records.get_model", return_value="模拟模型"):
             usage = extract_context_records(self.session, self.fake_client(self.candidate_text()),
                 self.limits, InterruptController(), force=True)
         self.assertEqual(usage, (12, 4))
@@ -121,7 +121,7 @@ class ContextRecordExtractionTest(unittest.TestCase):
 
     def test_invalid_output_and_interrupt_preserve_progress(self):
         """无效模型输出不推进进度，已暂停时不发起提取请求。"""
-        with patch("hexgent.loop.extract_context_records.get_model", return_value="模拟模型"):
+        with patch("mindweave_harness.loop.extract_context_records.get_model", return_value="模拟模型"):
             extract_context_records(self.session, self.fake_client("垃圾输出"),
                 self.limits, InterruptController(), force=True)
         self.assertEqual(self.session.last_extracted_transcript_sequence, 0)
@@ -131,7 +131,7 @@ class ContextRecordExtractionTest(unittest.TestCase):
 
     def test_toml_and_run_override(self):
         """提取配置支持 TOML 加载和单次覆盖。"""
-        path = self.root / "hexgent.toml"
+        path = self.root / "mindweave_harness.toml"
         path.write_text("[context_extraction]\nenabled = false\nturn_interval = 5\n", encoding="utf-8")
         config = load_config(self.root)
         self.assertFalse(config.context_extraction.enabled)
@@ -141,7 +141,7 @@ class ContextRecordExtractionTest(unittest.TestCase):
 
     def test_loop_does_not_block_normal_finish_for_extraction(self):
         """正常结束不应为可延后的记录提取额外阻塞用户响应。"""
-        engine = AgentEngine(HexgentConfig(), self.root, session=Session())
+        engine = AgentEngine(MindWeaveHarnessConfig(), self.root, session=Session())
         state = LoopState(context_manager=self.context, tool_context=engine.tool_context)
 
         def finished_turn(*_args, **_kwargs):
@@ -154,7 +154,7 @@ class ContextRecordExtractionTest(unittest.TestCase):
         ) as extraction:
             outcome = list(agent_loop_module.agent_loop(
                 state,
-                config=HexgentConfig(),
+                config=MindWeaveHarnessConfig(),
                 client=object(),
                 session=self.session,
             ))
@@ -177,7 +177,7 @@ class ContextRecordExtractionTest(unittest.TestCase):
 
     def test_failed_extraction_is_suppressed_until_next_run(self):
         """同一 Run 内失败后不能反复阻塞相同事实批次。"""
-        with patch("hexgent.loop.extract_context_records.get_model", return_value="模拟模型"):
+        with patch("mindweave_harness.loop.extract_context_records.get_model", return_value="模拟模型"):
             extract_context_records(
                 self.session,
                 SimpleNamespace(responses=SimpleNamespace(create=lambda **_kwargs: iter(()))),

@@ -12,7 +12,7 @@ MySQL 仅挂载当前仓库的 `001-init-hex-workspace.sql` 副本。该完整�
 
 Workspace 和 Runtime 镜像由冻结 Git 源码副本构建，并按镜像 ID 部署。Production target、POM 与源码不变。当前只读 Maven 缓存缺少默认测试／打包插件依赖，构建脚本仅在副本关闭测试阶段、固定 API 构建插件和使用 Boot 2.7.12 打包插件；这些覆盖随 build-metadata 保存，业务依赖与源码没有替换。构建不是 Maven 测试验收。
 
-Runtime 不复制 `.env`，不配置 OpenAI Provider 凭证。Workspace 只显式注入 Embedding key，用于固定文档的真实索引。创建 Session 不 StartRun。Runtime workdir 位于不同 Trial 的私有目录，因此 `.hexgent/memory`、`.hexgent/sessions/<session_id>/transcript.jsonl`、Checkpoint 等路径隔离；这不是 T05 的多身份 Memory 安全性结论。
+Runtime 不复制 `.env`，不配置 OpenAI Provider 凭证。Workspace 只显式注入 Embedding key，用于固定文档的真实索引。创建 Session 不 StartRun。Runtime workdir 位于不同 Trial 的私有目录，因此 `.mindweave_harness/memory`、`.mindweave_harness/sessions/<session_id>/transcript.jsonl`、Checkpoint 等路径隔离；这不是 T05 的多身份 Memory 安全性结论。
 
 ## 入口
 

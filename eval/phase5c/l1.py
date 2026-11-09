@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from hexgent.memory import ContextRecord
+from mindweave_harness.memory import ContextRecord
 
 from .fixtures import freeze_snapshot
 

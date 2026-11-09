@@ -6,12 +6,12 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import unittest
 
-from hexgent.plan import InMemoryPlanStore
-from hexgent.session import SessionStore
-from hexgent.tool.tool_permission_pipeline import PermissionContext, evaluate_permission
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.tool.tool_execution import execute_tool_batch, execute_tool_call
-from hexgent.tool.tool_registry import get_tool
+from mindweave_harness.plan import InMemoryPlanStore
+from mindweave_harness.session import SessionStore
+from mindweave_harness.tool.tool_permission_pipeline import PermissionContext, evaluate_permission
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.tool.tool_execution import execute_tool_batch, execute_tool_call
+from mindweave_harness.tool.tool_registry import get_tool
 
 
 class PermissionPipelineTest(unittest.TestCase):

@@ -8,10 +8,10 @@ import subprocess
 from time import monotonic
 from urllib.parse import urlsplit
 
-from hexgent.client import get_client, get_model
-from hexgent.context import ContextLimits
-from hexgent.context.context_compaction import COMPACTION_INSTRUCTIONS
-from hexgent.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS
+from mindweave_harness.client import get_client, get_model
+from mindweave_harness.context import ContextLimits
+from mindweave_harness.context.context_compaction import COMPACTION_INSTRUCTIONS
+from mindweave_harness.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS
 from .offline import ROOT, fingerprints, save
 
 

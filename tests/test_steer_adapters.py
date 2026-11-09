@@ -10,24 +10,24 @@ from types import SimpleNamespace
 import os
 import pty
 
-from hexgent.agent_engine import AgentEngine
-from hexgent.config import HexgentConfig
-from hexgent.adapters.web.run_manager import RunManager
-from hexgent.adapters.web.session_projection import transcript_messages
-from hexgent.adapters.cli.interactive_run import submit_control
-from hexgent.adapters.cli.interactive_run import run_interactive
-from hexgent.adapters.cli.terminal_io import TerminalIO
-from hexgent.run_control import RunControl
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.adapters.web.run_manager import RunManager
+from mindweave_harness.adapters.web.session_projection import transcript_messages
+from mindweave_harness.adapters.cli.interactive_run import submit_control
+from mindweave_harness.adapters.cli.interactive_run import run_interactive
+from mindweave_harness.adapters.cli.terminal_io import TerminalIO
+from mindweave_harness.run_control import RunControl
 from tests.test_interrupting_steer import Client, GatedStream, completed
 
 
 class AdapterSteeringTests(unittest.IsolatedAsyncioTestCase):
     async def test_duplicate_identity_and_conflict_at_adapter_boundary(self):
         with TemporaryDirectory() as directory:
-            manager = RunManager(HexgentConfig(), Path(directory))
+            manager = RunManager(MindWeaveHarnessConfig(), Path(directory))
             session = await manager.create_session("default")
-            from hexgent.adapters.web.run_manager import RunHandle
-            from hexgent.adapters.web.errors import WebAdapterError
+            from mindweave_harness.adapters.web.run_manager import RunHandle
+            from mindweave_harness.adapters.web.errors import WebAdapterError
             handle = RunHandle("manual", session.session_id, "任务", True, RunControl(), status="running")
             manager._runs["manual"] = handle
             await manager.steer("manual", "唯一原文", mode="boundary", command_id="stable")
@@ -44,8 +44,8 @@ class AdapterSteeringTests(unittest.IsolatedAsyncioTestCase):
             class Engine(AgentEngine):
                 def run(self, *args, **kwargs):
                     return super().run(*args, client=client, **kwargs)
-            manager = RunManager(HexgentConfig(), Path(directory), engine_factory=Engine)
-            with patch("hexgent.loop.agent_turn.get_model", return_value="offline"):
+            manager = RunManager(MindWeaveHarnessConfig(), Path(directory), engine_factory=Engine)
+            with patch("mindweave_harness.loop.agent_turn.get_model", return_value="offline"):
                 try:
                     session = await manager.create_session("default")
                     run = await manager.start_run(session.session_id, "原始任务")
@@ -68,9 +68,9 @@ class AdapterSteeringTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_slow_stream_close_does_not_block_event_loop(self):
         with TemporaryDirectory() as directory:
-            manager = RunManager(HexgentConfig(), Path(directory))
+            manager = RunManager(MindWeaveHarnessConfig(), Path(directory))
             session = await manager.create_session("default")
-            from hexgent.adapters.web.run_manager import RunHandle
+            from mindweave_harness.adapters.web.run_manager import RunHandle
             control = RunControl()
             handle = RunHandle("manual", session.session_id, "任务", True, control, status="running")
             manager._runs["manual"] = handle
@@ -102,7 +102,7 @@ class CliSteeringTests(unittest.TestCase):
                         pending.set()
                         return callback(*values)
                     return super().run(*args, client=client, user_confirmation=confirm, **kwargs)
-            engine = Engine(HexgentConfig(), Path(directory))
+            engine = Engine(MindWeaveHarnessConfig(), Path(directory))
             master, slave = pty.openpty()
             reader = os.fdopen(slave, "r")
             def send():
@@ -111,8 +111,8 @@ class CliSteeringTests(unittest.TestCase):
             writer = Thread(target=send)
             writer.start()
             try:
-                with patch("sys.stdin", reader), patch("hexgent.loop.agent_turn.get_model", return_value="offline"):
-                    from hexgent.agent_engine import RunRequest
+                with patch("sys.stdin", reader), patch("mindweave_harness.loop.agent_turn.get_model", return_value="offline"):
+                    from mindweave_harness.agent_engine import RunRequest
                     run_interactive(TerminalIO(), engine, RunRequest.submit("修改资料"), RunControl(),
                         SimpleNamespace(render=lambda _: None))
                 self.assertFalse((Path(directory) / "forbidden.txt").exists())
@@ -131,7 +131,7 @@ class CliSteeringTests(unittest.TestCase):
             class Engine(AgentEngine):
                 def run(self, *args, **kwargs):
                     return super().run(*args, client=client, **kwargs)
-            engine = Engine(HexgentConfig(), Path(directory))
+            engine = Engine(MindWeaveHarnessConfig(), Path(directory))
             master, slave = pty.openpty()
             reader = os.fdopen(slave, "r")
             terminal = TerminalIO()
@@ -141,8 +141,8 @@ class CliSteeringTests(unittest.TestCase):
             writer = Thread(target=type_query)
             writer.start()
             try:
-                with patch("sys.stdin", reader), patch("hexgent.loop.agent_turn.get_model", return_value="offline"):
-                    from hexgent.agent_engine import RunRequest
+                with patch("sys.stdin", reader), patch("mindweave_harness.loop.agent_turn.get_model", return_value="offline"):
+                    from mindweave_harness.agent_engine import RunRequest
                     run_interactive(terminal, engine, RunRequest.submit("原始任务"), RunControl(),
                         SimpleNamespace(render=lambda _: None))
                 self.assertTrue(stream.closed)

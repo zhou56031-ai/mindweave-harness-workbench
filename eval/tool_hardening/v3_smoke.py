@@ -12,26 +12,26 @@ import threading
 from time import perf_counter
 from unittest.mock import patch
 
-from hexgent.agent_engine import AgentEngine
-from hexgent.client import get_client, get_model
-from hexgent.config import HexgentConfig
-from hexgent.loop import agent_turn
-from hexgent.loop.limits import LoopLimits
-from hexgent.tool.tool_registry import TOOL_REGISTRY
-from hexgent.tool.tool_scheduler import ToolParallelLimits, execute_tool_batch
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.client import get_client, get_model
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.loop import agent_turn
+from mindweave_harness.loop.limits import LoopLimits
+from mindweave_harness.tool.tool_registry import TOOL_REGISTRY
+from mindweave_harness.tool.tool_scheduler import ToolParallelLimits, execute_tool_batch
 from eval.phase5c.provider_preflight import classify_preflight_failure, redact_diagnostic
 from .v2_runner import ROOT, digest
 
 TASKS = {
-    "tool_pipeline": {"scope": "hexgent/tool、hexgent/loop/agent_turn.py、相关 tests", "required": ["hexgent/tool/tool_scheduler.py", "hexgent/tool/tool_execution.py", "hexgent/tool/tool_permission_pipeline.py"], "questions": ["相邻只读工具如何分组，写工具如何形成屏障？", "权限决策与 dispatch 的先后关系是什么？", "完成顺序与模型可见结果顺序如何处理？", "超时是否保证运行线程停止，未知副作用是否安全自动重试？"]},
-    "recovery_checkpoint": {"scope": "hexgent/session、hexgent/agent_engine.py、相关 tests", "required": ["hexgent/session/session_restore.py", "hexgent/session/checkpoint.py", "hexgent/session/tool_call_recovery.py"], "questions": ["Checkpoint 与 Transcript 的权威关系是什么？", "最新 checkpoint 损坏时如何处理？", "started、dispatched、finished 不同事实下如何处理未闭合调用？", "恢复后继续原 Run 有什么状态前提，未知副作用能否自动重试？"]},
-    "memory_context": {"scope": "hexgent/memory、hexgent/context、hexgent/loop/extract_context_records.py、相关 tests", "required": ["hexgent/memory/memory_store.py", "hexgent/memory/context_records.py", "hexgent/memory/context_retrieval.py", "hexgent/context/context_compaction.py"], "questions": ["Workspace Memory 与 Session ContextRecord 的作用域如何区分？", "record 来源有效性与 active/superseded 如何校验？", "检索预算及请求注入如何约束？", "压缩如何保留完整工具轮次，无效摘要如何处理？"]},
+    "tool_pipeline": {"scope": "mindweave_harness/tool、mindweave_harness/loop/agent_turn.py、相关 tests", "required": ["mindweave_harness/tool/tool_scheduler.py", "mindweave_harness/tool/tool_execution.py", "mindweave_harness/tool/tool_permission_pipeline.py"], "questions": ["相邻只读工具如何分组，写工具如何形成屏障？", "权限决策与 dispatch 的先后关系是什么？", "完成顺序与模型可见结果顺序如何处理？", "超时是否保证运行线程停止，未知副作用是否安全自动重试？"]},
+    "recovery_checkpoint": {"scope": "mindweave_harness/session、mindweave_harness/agent_engine.py、相关 tests", "required": ["mindweave_harness/session/session_restore.py", "mindweave_harness/session/checkpoint.py", "mindweave_harness/session/tool_call_recovery.py"], "questions": ["Checkpoint 与 Transcript 的权威关系是什么？", "最新 checkpoint 损坏时如何处理？", "started、dispatched、finished 不同事实下如何处理未闭合调用？", "恢复后继续原 Run 有什么状态前提，未知副作用能否自动重试？"]},
+    "memory_context": {"scope": "mindweave_harness/memory、mindweave_harness/context、mindweave_harness/loop/extract_context_records.py、相关 tests", "required": ["mindweave_harness/memory/memory_store.py", "mindweave_harness/memory/context_records.py", "mindweave_harness/memory/context_retrieval.py", "mindweave_harness/context/context_compaction.py"], "questions": ["Workspace Memory 与 Session ContextRecord 的作用域如何区分？", "record 来源有效性与 active/superseded 如何校验？", "检索预算及请求注入如何约束？", "压缩如何保留完整工具轮次，无效摘要如何处理？"]},
 }
 
 
 def prompt(task):
     """自然审计目标，不包含固定调用列表或并发提示。"""
-    return f"请只读审计当前 Hexgent 的 {task['scope']}。自主查找相关实现和测试，回答：" + "；".join(task["questions"]) + "。不要改文件，不访问网络。最终返回 JSON：{\"findings\":[{\"question\":\"问题\",\"conclusion\":\"结论\",\"evidence\":[{\"path\":\"源码相对路径\",\"quote\":\"逐字源码片段\"}]}],\"limitations\":[\"证据不足项\"]}。每个问题都要回答并引用实际读取的源码，明确事实与不确定性，不得仅声称审计完成。"
+    return f"请只读审计当前 MindWeave Harness 的 {task['scope']}。自主查找相关实现和测试，回答：" + "；".join(task["questions"]) + "。不要改文件，不访问网络。最终返回 JSON：{\"findings\":[{\"question\":\"问题\",\"conclusion\":\"结论\",\"evidence\":[{\"path\":\"源码相对路径\",\"quote\":\"逐字源码片段\"}]}],\"limitations\":[\"证据不足项\"]}。每个问题都要回答并引用实际读取的源码，明确事实与不确定性，不得仅声称审计完成。"
 
 
 from .v3_provider import Observer, usage_report
@@ -83,7 +83,7 @@ def oracle(task, records, answer, workspace):
 
 def production_audit_config(parallel):
     """沿用生产默认预算，仅覆盖调度开关和用户授权的自动放行模式。"""
-    defaults = HexgentConfig()
+    defaults = MindWeaveHarnessConfig()
     return replace(defaults, tool_parallel=replace(defaults.tool_parallel, enabled=parallel),
                    permission=replace(defaults.permission, default_mode="auto_approve"))
 
@@ -92,7 +92,7 @@ def run_one(task, directory, parallel, client, protected, *, instruction=None, e
     """隔离源码快照、正式 Loop、真实只读 Registry，开启诊断探针。"""
     workspace = directory / "workspace"
     workspace.mkdir(parents=True)
-    for name in ("hexgent", "tests"):
+    for name in ("mindweave_harness", "tests"):
         shutil.copytree(ROOT / name, workspace / name, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     if production_profile:
         for name in ("docs", "README.md", "pyproject.toml", "uv.lock"):
@@ -102,7 +102,7 @@ def run_one(task, directory, parallel, client, protected, *, instruction=None, e
             elif source.is_file():
                 shutil.copy2(source, workspace / name)
     assert all(digest(workspace / p) == h for p, h in protected.items())
-    config = replace(HexgentConfig(), tool_parallel=ToolParallelLimits(enabled=parallel), loop=LoopLimits(max_model_rounds=16, max_tool_calls=100, max_elapsed_seconds=600))
+    config = replace(MindWeaveHarnessConfig(), tool_parallel=ToolParallelLimits(enabled=parallel), loop=LoopLimits(max_model_rounds=16, max_tool_calls=100, max_elapsed_seconds=600))
     if production_profile:
         config = production_audit_config(parallel)
     observer = Observer(client, directory / "provider-calls.json")
@@ -211,7 +211,7 @@ def main():
     client = get_client()
     assert get_model() == preflight["result"]["model_id"]
     args.output_dir.mkdir(parents=True, exist_ok=False)
-    protected = {str(p.relative_to(ROOT)): digest(p) for base in ("hexgent", "tests") for p in (ROOT / base).rglob("*.py")}
+    protected = {str(p.relative_to(ROOT)): digest(p) for base in ("mindweave_harness", "tests") for p in (ROOT / base).rglob("*.py")}
     report = {"status": "RUNNING", "preflight": str(args.preflight), "model": get_model(), "provider_base_url": str(client.base_url), "source_hashes": protected, "instrumented_smoke": True, "runs": []}
     for name, task in TASKS.items():
         for parallel in (True, False):

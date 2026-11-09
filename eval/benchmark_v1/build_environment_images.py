@@ -69,7 +69,7 @@ def main():
     app = args.root / "workspace-image"; app.mkdir()
     shutil.copyfile(args.root / "workspace/hex-workspace-app/target/hex-workspace-app.jar", app / "app.jar")
     (app / "Dockerfile").write_text('FROM eclipse-temurin:17-jre-jammy\nCOPY app.jar /app.jar\nENTRYPOINT ["java","-jar","/app.jar"]\n')
-    workspace_tag = "hexgent-b1b-workspace:" + metadata["workspace"]["commit"][:12]
+    workspace_tag = "mindweave_harness-b1b-workspace:" + metadata["workspace"]["commit"][:12]
     docker.run(["build", "--tag", workspace_tag, str(app)], timeout=300)
     # 使用已存在的 Python 基础镜像；安装软件依赖，不调用任何模型服务。
     runtime = args.root / "runtime"
@@ -77,15 +77,15 @@ def main():
                             ["fastapi", "uvicorn", "openai", "python-dotenv", "httpx", "pydantic"])
     metadata["runtime"]["dependencies"] = dependencies.split()
     (runtime / "Dockerfile.benchmark").write_text('''FROM docker.xuanyuan.run/library/python:3.12-slim
-WORKDIR /opt/hexgent
+WORKDIR /opt/mindweave_harness
 COPY pyproject.toml ./
 RUN pip install --no-cache-dir ''' + dependencies + '''
-COPY hexgent ./hexgent
-ENV PYTHONPATH=/opt/hexgent
+COPY mindweave_harness ./mindweave_harness
+ENV PYTHONPATH=/opt/mindweave_harness
 ''')
     # 明确排除凭证、Runtime 状态与评测产物，不复制整个仓库进镜像。
-    (runtime / ".dockerignore").write_text('*\n!pyproject.toml\n!hexgent/\n!hexgent/**\n!Dockerfile.benchmark\n')
-    runtime_tag = "hexgent-b1b-runtime:" + metadata["runtime"]["commit"][:12]
+    (runtime / ".dockerignore").write_text('*\n!pyproject.toml\n!mindweave_harness/\n!mindweave_harness/**\n!Dockerfile.benchmark\n')
+    runtime_tag = "mindweave_harness-b1b-runtime:" + metadata["runtime"]["commit"][:12]
     docker.run(["build", "--file", str(runtime / "Dockerfile.benchmark"), "--tag", runtime_tag, str(runtime)], timeout=300)
     for name, tag in [("workspace", workspace_tag), ("runtime", runtime_tag)]:
         metadata[name]["image"] = tag

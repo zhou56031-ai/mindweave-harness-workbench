@@ -4,8 +4,8 @@ from io import StringIO
 import unittest
 from unittest.mock import patch
 
-from hexgent.adapters.cli.terminal_io import TerminalIO
-from hexgent.run_control import InterruptController, RunControl
+from mindweave_harness.adapters.cli.terminal_io import TerminalIO
+from mindweave_harness.run_control import InterruptController, RunControl
 
 
 class TerminalIOTest(unittest.TestCase):
@@ -98,11 +98,11 @@ class TerminalIOTest(unittest.TestCase):
 
         with (
             patch(
-                "hexgent.adapters.cli.terminal_io.signal.getsignal",
+                "mindweave_harness.adapters.cli.terminal_io.signal.getsignal",
                 return_value=previous_handler,
             ),
             patch(
-                "hexgent.adapters.cli.terminal_io.signal.signal",
+                "mindweave_harness.adapters.cli.terminal_io.signal.signal",
                 side_effect=install_handler,
             ),
             patch("sys.stdout", StringIO()) as output,
@@ -123,11 +123,11 @@ class TerminalIOTest(unittest.TestCase):
 
         with (
             patch(
-                "hexgent.adapters.cli.terminal_io.signal.getsignal",
+                "mindweave_harness.adapters.cli.terminal_io.signal.getsignal",
                 return_value=object(),
             ),
             patch(
-                "hexgent.adapters.cli.terminal_io.signal.signal",
+                "mindweave_harness.adapters.cli.terminal_io.signal.signal",
                 side_effect=lambda _number, handler: installed_handlers.append(handler),
             ),
             patch("sys.stdout", StringIO()) as output,

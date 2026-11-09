@@ -6,9 +6,9 @@ import subprocess
 import sys
 import unittest
 from dataclasses import replace
-from hexgent.agent_engine import AgentEngine
-from hexgent.config import HexgentConfig
-from hexgent.session.session_store import SessionStore
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.session.session_store import SessionStore
 from eval.support.agent_contracts import FakeModel, text_response
 
 
@@ -17,7 +17,7 @@ class PinnedLifecycleTests(unittest.TestCase):
         self.temp=TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root=Path(self.temp.name)
-        self.engine=AgentEngine(HexgentConfig(),self.root)
+        self.engine=AgentEngine(MindWeaveHarnessConfig(),self.root)
 
     def pin(self,text="不得修改 source.md",command="one"):
         return self.engine.manage_pinned_constraint("pin",command,text=text)["changes"][-1]
@@ -65,7 +65,7 @@ class PinnedLifecycleTests(unittest.TestCase):
     def test_other_process_cannot_write_while_owned(self):
         self.pin()
         store=self.engine.session.store
-        code="from pathlib import Path; from hexgent.session.session_store import SessionStore; import sys; s=SessionStore.open_existing(Path(sys.argv[1]),sys.argv[2]); s.append_transcript('intruder',{})"
+        code="from pathlib import Path; from mindweave_harness.session.session_store import SessionStore; import sys; s=SessionStore.open_existing(Path(sys.argv[1]),sys.argv[2]); s.append_transcript('intruder',{})"
         with store.write_guard():
             result=subprocess.run([sys.executable,"-c",code,str(self.root),store.session_id],capture_output=True,text=True,timeout=10)
         self.assertNotEqual(result.returncode,0)

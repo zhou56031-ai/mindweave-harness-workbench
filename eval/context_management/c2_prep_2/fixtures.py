@@ -3,21 +3,21 @@ from pathlib import Path
 from hashlib import sha256
 from collections import Counter
 from eval.context_management.c1_independent import ROOT as REPO, plain, response, save
-from hexgent.utils.token_estimator import estimate_value_tokens
+from mindweave_harness.utils.token_estimator import estimate_value_tokens
 
 ROOT = Path(__file__).resolve().parent
 TOPICS = [
-    ('L1', '多轮 Runtime 配置与调用链审查', ['hexgent', 'tests'],
+    ('L1', '多轮 Runtime 配置与调用链审查', ['mindweave_harness', 'tests'],
      [('当前演练配置监听端口=19347', 'SUMMARY_REQUIRED'), ('早期演练端口=19000', 'OBSOLETE'),
       ('当前快照编号=CONFIG-ELM-2026-R8', 'SUMMARY_REQUIRED'), ('批处理失败后仅重试未提交项', 'SUMMARY_REQUIRED'),
       ('提交前需要核对 Lease 归属与输入修订号', 'SUMMARY_REQUIRED'), ('旧重试策略=全部项无条件重试', 'OBSOLETE'),
       ('本轮最终决策=完成只读审查，发布仍待批准', 'SUMMARY_REQUIRED'), ('禁止改写输入源码快照', 'EXTERNALLY_PROTECTED')]),
-    ('L2', '大型工具输出与测试证据阅读', ['tests', 'hexgent'],
+    ('L2', '大型工具输出与测试证据阅读', ['tests', 'mindweave_harness'],
      [('目标查询=QUERY-WILLOW-804', 'SUMMARY_REQUIRED'), ('旧残缺响应排名=第2名', 'OBSOLETE'),
       ('目标文档=DOC-W804-6', 'SUMMARY_REQUIRED'), ('完整响应 Dense Top30 未命中', 'SUMMARY_REQUIRED'),
       ('完整响应 Sparse 第7名且 RRF 第11名', 'SUMMARY_REQUIRED'), ('旧结论=目标已进入Top5', 'OBSOLETE'),
       ('最终完整排序=第8名，仍在Top5外', 'SUMMARY_REQUIRED'), ('不得修改查询与标注文件', 'EXTERNALLY_PROTECTED')]),
-    ('L3', '长审查任务部分完成及失败恢复交接', ['hexgent', 'tests'],
+    ('L3', '长审查任务部分完成及失败恢复交接', ['mindweave_harness', 'tests'],
      [('交接批次=AUDIT-MAPLE-57', 'SUMMARY_REQUIRED'), ('旧进度=全部审查完成', 'OBSOLETE'),
       ('参数与协议审查已完成', 'SUMMARY_REQUIRED'), ('失败恢复后的检索审查已完成', 'SUMMARY_REQUIRED'),
       ('当前阻塞=等待维护者确认两处权限契约', 'SUMMARY_REQUIRED'), ('旧建议=跳过权限审查直接发布', 'OBSOLETE'),
@@ -52,7 +52,7 @@ def build():
             elif identifier == 'L2':
                 intro += '保留各测试的输入、异常、预期状态和 Call ID 断言；不要把不同测试的事实拼接成一次执行结果。\n'
             else:
-                intro += '记录参数默认值、入口调用方、状态转换及边界检查。下方是 Hexgent 代码参考，不是合成演练部署的配置权威。\n'
+                intro += '记录参数默认值、入口调用方、状态转换及边界检查。下方是 MindWeave Harness 代码参考，不是合成演练部署的配置权威。\n'
             call = dict(type='function_call', call_id=call_id, name='read_file', arguments='{"path":'+ __import__('json').dumps(relative)+'}')
             output = dict(type='function_call_output', call_id=call_id, output=intro+content)
             rounds.append(dict(query=query, messages=[call, output]+plain(response('已阅读该工作项；保留其来源，继续追踪依赖和边界。').output)))

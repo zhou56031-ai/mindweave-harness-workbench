@@ -7,8 +7,8 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 from eval.context_management.c2_prep_2.control import BudgetDenied, Trace, TraceResponses
-from hexgent.context.context_compaction import COMPACTION_INSTRUCTIONS
-from hexgent.utils.token_estimator import estimate_request_tokens
+from mindweave_harness.context.context_compaction import COMPACTION_INSTRUCTIONS
+from mindweave_harness.utils.token_estimator import estimate_request_tokens
 
 
 @dataclass(frozen=True)

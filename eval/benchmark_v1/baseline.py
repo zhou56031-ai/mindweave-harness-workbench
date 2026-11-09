@@ -78,7 +78,7 @@ def inventory(revision=None,variant_id="baseline",names=None,include_recovery=Fa
 
 
 def source_hashes(workspace,metadata,provider,embedding):
-    paths=[p for p in (ROOT/'hexgent').rglob('*.py')]
+    paths=[p for p in (ROOT/'mindweave_harness').rglob('*.py')]
     paths += [p for p in MODULE.rglob('*') if p.is_file() and p.suffix in {'.py','.json','.md'} and 'runs' not in p.relative_to(MODULE).parts and '__pycache__' not in p.parts]
     paths += [p for p in workspace.rglob('*.java') if 'target' not in p.parts]
     paths += [workspace/'docs/devops/mysql/sql/001-init-hex-workspace.sql',metadata,provider,embedding]
@@ -90,17 +90,17 @@ def freeze(args,items):
     if len(provider)!=3 or not all(provider.values()):raise ValueError('Provider 配置缺失')
     metadata=json.loads(args.build_metadata.read_text())
     uses_workspace=any(c['eligible'] and c['environment_kind']=='hexworkspace' for c in items)
-    if uses_workspace and git(ROOT,'diff',metadata['runtime']['commit'],'--','hexgent'):raise ValueError('Runtime 镜像与当前 Production 源码不一致')
+    if uses_workspace and git(ROOT,'diff',metadata['runtime']['commit'],'--','mindweave_harness'):raise ValueError('Runtime 镜像与当前 Production 源码不一致')
     from .fixture_agent import register_fixture
-    from hexgent.tool.tool_registry import TOOL_REGISTRY
-    from hexgent.prompt import TOOLS
-    from hexgent.observation import source_fingerprint
+    from mindweave_harness.tool.tool_registry import TOOL_REGISTRY
+    from mindweave_harness.prompt import TOOLS
+    from mindweave_harness.observation import source_fingerprint
     register_fixture('http://127.0.0.1:0','not-a-live-token')
     registry={name:{'function':tool.function.__module__+'.'+tool.function.__qualname__,'requires_context':tool.requires_context,'permission_capability':tool.permission_capability,'execution_domain':tool.execution_domain,'concurrency_safe':tool.concurrency_safe,'automatic_retry_safe':tool.automatic_retry_safe,'deduplication_policy':tool.deduplication_policy,'interrupt_behavior':tool.interrupt_behavior} for name,tool in TOOL_REGISTRY.items()}
     variant_id=getattr(args,'variant','baseline')
     plan=[{'variant_id':variant_id,'case_id':c['case_id'],'name':c['name'],'ordinal':i,'trial_id':variant_trial_id(args.root,variant_id,c['case_id'],i)} for c in items if c['eligible'] for i in [1,2,3]]
     manifest={'schema_version':1,'protocol_version':2 if getattr(args,'revision',None)=='f1' else 1,'variant_id':variant_id,'variant_schema_version':1,'campaign_id':args.root.name,'frozen_at':now(),'execution':'serial; exactly three planned attempts per eligible Case; no automatic task retry',
-        'inventory':items,'trial_plan':plan,'git':{'hexgent_head':git(ROOT,'rev-parse','HEAD'),'hexgent_branch':git(ROOT,'branch','--show-current'),'hexgent_status':git(ROOT,'status','--short','--untracked-files=all'),'workspace_head':git(args.workspace_source,'rev-parse','HEAD'),'workspace_branch':git(args.workspace_source,'branch','--show-current'),'workspace_status':git(args.workspace_source,'status','--short','--untracked-files=all')},
+        'inventory':items,'trial_plan':plan,'git':{'mindweave_harness_head':git(ROOT,'rev-parse','HEAD'),'mindweave_harness_branch':git(ROOT,'branch','--show-current'),'mindweave_harness_status':git(ROOT,'status','--short','--untracked-files=all'),'workspace_head':git(args.workspace_source,'rev-parse','HEAD'),'workspace_branch':git(args.workspace_source,'branch','--show-current'),'workspace_status':git(args.workspace_source,'status','--short','--untracked-files=all')},
         'runtime_source_sha256':source_fingerprint(),'build_metadata':metadata if uses_workspace else {'execution':'host Fixture subprocess; images unused','python':sys.executable},'source_hashes':source_hashes(args.workspace_source,args.build_metadata,args.provider_env_file,args.embedding_env_file),
         'provider':{'host':urlparse(provider['OPENAI_BASE_URL']).hostname,'route_sha256':sha256(provider['OPENAI_BASE_URL'].encode()).hexdigest(),'model':provider['MODEL_ID'],'temperature':'omitted / provider default','reasoning_effort':'omitted / provider default','sdk_max_retries':0 if getattr(args,'revision',None)=='f1' else 2,'max_output_tokens_per_round':4096,'finalization_output_tokens':2000,'server_model_identity':'not independently attested'},
         'harness':{'variant':variant_id,'config_by_case':'inventory.full_config','max_model_rounds':40,'tool_parallel':variant_id=='tool_parallel_on','permission_mode':'default','compaction_threshold_tokens':64000,'snapshot':'production compaction Key Fact Snapshot enabled','memory':'retrieval disabled; writes unchanged' if variant_id=='no_memory_retrieval' else 'production default enabled; T05 single identity','context_records':'production tracked default disabled; not an ablation','budgets':'unchanged frozen Case budgets'},
@@ -115,7 +115,7 @@ def freeze(args,items):
     for p in MODULE.rglob('*'):
         if p.is_file() and p.suffix in {'.py','.json','.md'} and 'runs' not in p.relative_to(MODULE).parts and '__pycache__' not in p.parts:
             target=args.root/'source-snapshot'/p.relative_to(MODULE);target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(p,target)
-    for p in (ROOT/'hexgent').rglob('*.py'):
+    for p in (ROOT/'mindweave_harness').rglob('*.py'):
         target=args.root/'runtime-source-snapshot'/p.relative_to(ROOT);target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(p,target)
     dump(args.root/'case-inventory.json',items)
     return manifest
@@ -125,7 +125,7 @@ def check_frozen(args,manifest):
     if digest(args.root/'baseline-manifest.json')!=json.loads((args.root/'manifest-sha256.json').read_text())['sha256']:raise ValueError('Manifest 被修改')
     for name,expected in manifest['source_hashes'].items():
         if digest(Path(name))!=expected:raise ValueError('冻结输入发生变化：'+name)
-    if git(ROOT,'rev-parse','HEAD')!=manifest['git']['hexgent_head']:raise ValueError('Git HEAD 变化')
+    if git(ROOT,'rev-parse','HEAD')!=manifest['git']['mindweave_harness_head']:raise ValueError('Git HEAD 变化')
 
 
 def command(args,case,trial):

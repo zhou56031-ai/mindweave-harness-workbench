@@ -4,11 +4,11 @@ from types import SimpleNamespace
 from tests.support.fact_extraction_fixture import extraction_event
 import unittest
 
-from hexgent.context.context_compaction import compact_context_if_needed
-from hexgent.utils.token_estimator import estimate_request_tokens, estimate_value_tokens
-from hexgent.context.context_budget import ContextLimits
-from hexgent.context.context_manager import ContextManager, UserQuery
-from hexgent.events import (
+from mindweave_harness.context.context_compaction import compact_context_if_needed
+from mindweave_harness.utils.token_estimator import estimate_request_tokens, estimate_value_tokens
+from mindweave_harness.context.context_budget import ContextLimits
+from mindweave_harness.context.context_manager import ContextManager, UserQuery
+from mindweave_harness.events import (
     ContextCompactionFailedEvent,
     ContextCompactionFinishedEvent,
     ContextCompactionStartedEvent,
@@ -333,7 +333,7 @@ class ContextCompactionTest(unittest.TestCase):
 
     def test_summary_prompt_does_not_describe_compaction_as_task_interruption(self) -> None:
         """摘要提示必须明确压缩是内部过程，不能误导后续主模型。"""
-        from hexgent.context.context_compaction import COMPACTION_INSTRUCTIONS
+        from mindweave_harness.context.context_compaction import COMPACTION_INSTRUCTIONS
 
         self.assertIn("主 Agent 会自动恢复原任务", COMPACTION_INSTRUCTIONS)
         self.assertIn("不要把摘要生成描述成任务中断", COMPACTION_INSTRUCTIONS)

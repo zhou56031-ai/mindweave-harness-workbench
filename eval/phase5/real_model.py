@@ -13,13 +13,13 @@ from tempfile import TemporaryDirectory
 from time import perf_counter
 from typing import Any, Callable, Iterable
 
-from hexgent.agent_engine import AgentEngine
-from hexgent.client import get_client
-from hexgent.config import HexgentConfig
-from hexgent.context import ContextLimits
-from hexgent.memory import ContextRecordInput, ContextRetrievalLimits, MemoryRetrievalLimits, MemoryStore
-from hexgent.memory.context_record_extraction import ContextExtractionLimits
-from hexgent.utils.token_estimator import estimate_request_tokens, estimate_value_tokens
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.client import get_client
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.context import ContextLimits
+from mindweave_harness.memory import ContextRecordInput, ContextRetrievalLimits, MemoryRetrievalLimits, MemoryStore
+from mindweave_harness.memory.context_record_extraction import ContextExtractionLimits
+from mindweave_harness.utils.token_estimator import estimate_request_tokens, estimate_value_tokens
 
 
 EVIDENCE_TYPE = "REAL_MODEL_BEHAVIORAL_EVIDENCE"
@@ -93,10 +93,10 @@ def _usage_value(usage: Any, *names: str) -> int | None:
 
 
 def _config(*, context: ContextLimits | None = None, context_records: bool = False,
-            memory: bool = False) -> HexgentConfig:
+            memory: bool = False) -> MindWeaveHarnessConfig:
     """关闭自动提取，避免把额外机制混入三组 paired 对照。"""
 
-    return HexgentConfig(
+    return MindWeaveHarnessConfig(
         context=context or ContextLimits(),
         context_extraction=ContextExtractionLimits(enabled=False),
         context_retrieval=ContextRetrievalLimits(enabled=context_records),
@@ -241,7 +241,7 @@ TaskBuilder = Callable[[Path], tuple[AgentEngine, str, str]]
 
 
 def _execute(scenario: str, variant: str, index: int, builder: TaskBuilder, *, injected_tag: str | None = None) -> IndividualRun:
-    with TemporaryDirectory(prefix="hexgent-phase5b-") as directory:
+    with TemporaryDirectory(prefix="mindweave_harness-phase5b-") as directory:
         root = Path(directory)
         engine, query, expected = builder(root)
         client = ObservedProductionClient(get_client())

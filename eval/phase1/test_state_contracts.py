@@ -5,19 +5,19 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import unittest
 
-from hexgent.config import HexgentConfig
-from hexgent.events import LoopLimitReachedEvent, LoopTransitionEvent, TextDeltaEvent
-from hexgent.loop.limits import LoopLimits
-from hexgent.loop.loop_state import LoopState
-from hexgent.context import ContextManager
-from hexgent.plan import InMemoryPlanStore, Plan, PlanStep
-from hexgent.run_control import RunControl
-from hexgent.session import Session
-from hexgent.session.session import SessionSettings
-from hexgent.session.checkpoint import CheckpointStore
-from hexgent.tool.plan_tools import validate_update_plan
-from hexgent.tool.tool_result import ToolExecutionResult
-from hexgent.tool.tool_context import ToolExecutionContext
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.events import LoopLimitReachedEvent, LoopTransitionEvent, TextDeltaEvent
+from mindweave_harness.loop.limits import LoopLimits
+from mindweave_harness.loop.loop_state import LoopState
+from mindweave_harness.context import ContextManager
+from mindweave_harness.plan import InMemoryPlanStore, Plan, PlanStep
+from mindweave_harness.run_control import RunControl
+from mindweave_harness.session import Session
+from mindweave_harness.session.session import SessionSettings
+from mindweave_harness.session.checkpoint import CheckpointStore
+from mindweave_harness.tool.plan_tools import validate_update_plan
+from mindweave_harness.tool.tool_result import ToolExecutionResult
+from mindweave_harness.tool.tool_context import ToolExecutionContext
 
 from eval.support.agent_contracts import run_trace, text_response, tool_call
 
@@ -81,7 +81,7 @@ class AgentStateContractTest(unittest.TestCase):
         trace, _ = run_trace(
             [text_response("暂时无法继续")],
             tool_context=incomplete_context,
-            config=HexgentConfig(loop=LoopLimits(max_plan_completion_nudges=0)),
+            config=MindWeaveHarnessConfig(loop=LoopLimits(max_plan_completion_nudges=0)),
         )
         self.assertEqual(trace.finished.result.status, "incomplete")
         self.assertEqual(trace.finished.result.stop_reason, "plan_still_active")
@@ -89,7 +89,7 @@ class AgentStateContractTest(unittest.TestCase):
     def test_budget_limit_enters_finalization_before_terminal(self) -> None:
         trace, _ = run_trace(
             [text_response("预算收尾")],
-            config=HexgentConfig(loop=LoopLimits(max_model_rounds=0)),
+            config=MindWeaveHarnessConfig(loop=LoopLimits(max_model_rounds=0)),
         )
         self.assertTrue(any(isinstance(event, LoopLimitReachedEvent) for event in trace.events))
         self.assertTrue(any(
@@ -148,7 +148,7 @@ class AgentStateContractTest(unittest.TestCase):
                 run_status="terminal",
             )
             assert checkpoint is not None
-            checkpoint_path = path / ".hexgent" / "sessions" / store.store.session_id / "checkpoints" / f"{checkpoint.checkpoint_id}.json"
+            checkpoint_path = path / ".mindweave_harness" / "sessions" / store.store.session_id / "checkpoints" / f"{checkpoint.checkpoint_id}.json"
             checkpoint_path.write_text(checkpoint_path.read_text(encoding="utf-8").replace('"checksum":"', '"checksum":"broken', 1), encoding="utf-8")
             with self.assertRaises(ValueError):
                 CheckpointStore(checkpoint_path.parent.parent).read(checkpoint.checkpoint_id)

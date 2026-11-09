@@ -9,21 +9,21 @@ import unittest
 from unittest.mock import patch
 from threading import Event
 
-from hexgent.context import ContextManager
-from hexgent.config import HexgentConfig
-from hexgent.events import RunFinishedEvent, TextDeltaEvent, ToolFinishedEvent
-from hexgent.loop.loop_state import LoopState
-from hexgent.run_control import InterruptController, RunControl
-from hexgent.plan import InMemoryPlanStore, Plan, PlanStep
-from hexgent.session import Session
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.tool.tool_result import ToolExecutionResult
-from hexgent.tool.tool_permission_pipeline import PermissionConfig
+from mindweave_harness.context import ContextManager
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.events import RunFinishedEvent, TextDeltaEvent, ToolFinishedEvent
+from mindweave_harness.loop.loop_state import LoopState
+from mindweave_harness.run_control import InterruptController, RunControl
+from mindweave_harness.plan import InMemoryPlanStore, Plan, PlanStep
+from mindweave_harness.session import Session
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.tool.tool_result import ToolExecutionResult
+from mindweave_harness.tool.tool_permission_pipeline import PermissionConfig
 
 
-agent_loop_module = import_module("hexgent.loop.agent_loop")
-turn_module = import_module("hexgent.loop.agent_turn")
-tool_execution_module = import_module("hexgent.tool.tool_execution")
+agent_loop_module = import_module("mindweave_harness.loop.agent_loop")
+turn_module = import_module("mindweave_harness.loop.agent_turn")
+tool_execution_module = import_module("mindweave_harness.tool.tool_execution")
 
 
 class FakeResponses:
@@ -98,7 +98,7 @@ def run_loop(
     control = run_control or RunControl(interrupt_controller)
     return list(agent_loop_module.agent_loop(
         state,
-        config=HexgentConfig(permission=PermissionConfig(permission_mode)),
+        config=MindWeaveHarnessConfig(permission=PermissionConfig(permission_mode)),
         session=session,
         user_confirmation=user_confirmation,
         run_control=control,

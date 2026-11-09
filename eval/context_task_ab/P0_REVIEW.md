@@ -25,7 +25,7 @@ Runtime 350项通过。旧Module/Pinned Eval执行39项，出现9条失败记录
 `eval/phase5/scenarios.py:BenchmarkResponses`仅识别旧摘要请求，无Extractor响应/with_options契约；`eval/pinned_constraints/gate.py:EvalClient`只提供固定摘要文本，现在无法满足Snapshot Extraction。分类为旧Fixture/API漂移；不修复冻结资产。原始日志保存在本轮runs目录。
 
 ## 复现
-在Hexgent仓库执行：
+在MindWeave Harness仓库执行：
 
 ```sh
 .venv/bin/python -m eval.context_task_ab.offline_gate --regression

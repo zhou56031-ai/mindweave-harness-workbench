@@ -11,12 +11,12 @@ from unittest.mock import patch
 from eval.modules_v1.runner import encode
 from eval.phase5.scenarios import BenchmarkResponses, _base_config
 from eval.support.agent_contracts import text_response, tool_call
-from hexgent.agent_engine import AgentEngine, RunRequest
-from hexgent.adapters.web.run_manager import RunManager
-from hexgent.session.session_store import SessionStore
-from hexgent.tool.tool_registry import TOOL_REGISTRY, RegisteredTool
-from hexgent.tool.tool_validation import TOOL_SCHEMAS
-from hexgent.tool.tool_result import ToolHandlerResult
+from mindweave_harness.agent_engine import AgentEngine, RunRequest
+from mindweave_harness.adapters.web.run_manager import RunManager
+from mindweave_harness.session.session_store import SessionStore
+from mindweave_harness.tool.tool_registry import TOOL_REGISTRY, RegisteredTool
+from mindweave_harness.tool.tool_validation import TOOL_SCHEMAS
+from mindweave_harness.tool.tool_result import ToolHandlerResult
 
 
 CALL_ID = "hardening-call"
@@ -114,7 +114,7 @@ def child_a(root, scenario):
                 session = await manager.create_session("default")
                 await manager.start_run(session.session_id, "执行受控恢复工具")
                 await asyncio.wait_for(manager._runs[next(iter(manager._runs))].task, timeout=15)
-            with patch("hexgent.loop.agent_loop.get_client", return_value=SimpleNamespace(responses=client)):
+            with patch("mindweave_harness.loop.agent_loop.get_client", return_value=SimpleNamespace(responses=client)):
                 asyncio.run(pending())
         else:
             engine = AgentEngine.create(_base_config(), root)

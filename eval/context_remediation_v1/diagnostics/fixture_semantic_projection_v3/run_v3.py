@@ -39,7 +39,7 @@ def main():
     asset_checks={p:hashlib.sha256((ROOT/p).read_bytes()).hexdigest()==h for p,h in manifest['historical_hashes'].items()}
     diff=subprocess.run(['git','diff','--check'],cwd=ROOT,capture_output=True,text=True)
     integrity=dict(v1_unchanged=hashes(old)==manifest['v1_hashes'],v2_unchanged=hashes(BASE)==manifest['v2_hashes'],cross_unchanged=hashes(OUT.parent/'cross_run_reference_audit')==manifest['cross_hashes'],
-        production_unchanged=hashes(ROOT/'hexgent')==manifest['production_hashes'],other48_identical=unchanged,historical_assets_unchanged=all(asset_checks.values()),
+        production_unchanged=hashes(ROOT/'mindweave_harness')==manifest['production_hashes'],other48_identical=unchanged,historical_assets_unchanged=all(asset_checks.values()),
         historical_asset_checks=asset_checks,expectations_unchanged=all(hashlib.sha256((OUT/p).read_bytes()).hexdigest()==h for p,h in manifest['frozen_files'].items()),
         model_calls=0,network_calls=0,git_diff_check=dict(exit_code=diff.returncode,output=diff.stdout+diff.stderr))
     save(OUT/'integrity_report.json',integrity)

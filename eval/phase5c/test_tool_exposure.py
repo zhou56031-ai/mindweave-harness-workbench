@@ -6,10 +6,10 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
-from hexgent.loop import agent_turn
-from hexgent.plan import InMemoryPlanStore
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.tool.tool_execution import execute_tool_call
+from mindweave_harness.loop import agent_turn
+from mindweave_harness.plan import InMemoryPlanStore
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.tool.tool_execution import execute_tool_call
 
 from .specifications import task_by_id
 from .tool_exposure import task_tool_exposure, visible_tool_names
@@ -39,7 +39,7 @@ class TaskToolExposureTest(unittest.TestCase):
     def test_d2_forged_bash_call_is_denied_by_eval_policy(self) -> None:
         with TemporaryDirectory() as directory:
             context = ToolExecutionContext(InMemoryPlanStore(), Path(directory))
-            with patch("hexgent.tool.builtin_tools.subprocess.Popen") as process:
+            with patch("mindweave_harness.tool.builtin_tools.subprocess.Popen") as process:
                 with task_tool_exposure(task_by_id("D2")):
                     result = execute_tool_call(
                         "bash",

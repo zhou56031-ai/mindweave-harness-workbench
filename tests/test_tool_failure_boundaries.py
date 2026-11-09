@@ -5,12 +5,12 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
-from hexgent.plan import InMemoryPlanStore
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.tool.tool_execution import execute_tool_call
-from hexgent.tool.tool_registry import RegisteredTool
-from hexgent.tool.tool_result import ToolHandlerResult
-from hexgent.tool.tool_retry import ToolRetryLimits
+from mindweave_harness.plan import InMemoryPlanStore
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.tool.tool_execution import execute_tool_call
+from mindweave_harness.tool.tool_registry import RegisteredTool
+from mindweave_harness.tool.tool_result import ToolHandlerResult
+from mindweave_harness.tool.tool_retry import ToolRetryLimits
 
 
 class ToolFailureBoundariesTest(unittest.TestCase):
@@ -215,7 +215,7 @@ class ToolFailureBoundariesTest(unittest.TestCase):
         self.assertEqual(attempts, 1)
         self.assertEqual(result.attempt_count, 1)
 
-    @patch("hexgent.tool.tool_execution.sleep")
+    @patch("mindweave_harness.tool.tool_execution.sleep")
     def test_rate_limit_honors_retry_after(self, mocked_sleep) -> None:
         """限流失败应优先遵守外部依赖提供的最短等待时间。"""
         attempts = 0
@@ -317,10 +317,10 @@ class ToolFailureBoundariesTest(unittest.TestCase):
             "additionalProperties": False,
         }
         with TemporaryDirectory() as directory, patch(
-            "hexgent.tool.tool_execution.get_tool",
+            "mindweave_harness.tool.tool_execution.get_tool",
             return_value=registered_tool,
         ), patch.dict(
-            "hexgent.tool.tool_validation.TOOL_SCHEMAS",
+            "mindweave_harness.tool.tool_validation.TOOL_SCHEMAS",
             {tool_name: schema},
         ):
             context = ToolExecutionContext(

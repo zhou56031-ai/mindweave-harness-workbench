@@ -27,7 +27,7 @@ def metadata(budget, variant_id):
 
 def exclusion(contract, variant_id):
     effective_config(contract.execution_budget.model_dump(), variant_id)
-    if variant_id == 'no_memory_retrieval' and contract.task_id == 'T05' and contract.scenario_config.get('measurement_scope') == 'hexgent-memory-mechanism-specific':
+    if variant_id == 'no_memory_retrieval' and contract.task_id == 'T05' and contract.scenario_config.get('measurement_scope') == 'mindweave_harness-memory-mechanism-specific':
         return 'NOT_APPLICABLE: T05明确要求Memory机制，关闭召回与原评分合同冲突'
     return None
 

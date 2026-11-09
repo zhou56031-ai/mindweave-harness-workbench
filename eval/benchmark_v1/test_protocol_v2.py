@@ -37,8 +37,8 @@ class ProtocolV2Tests(unittest.TestCase):
         with self.assertRaises(BudgetExhausted):self.budget.dispatch(dict(session_id='s3',run_id='r'),'third','read',1)
 
     def test_gate_prevents_real_handler_before_side_effect(self):
-        observation=importlib.import_module('hexgent.observation');clients=importlib.import_module('hexgent.client')
-        loop=importlib.import_module('hexgent.loop.agent_loop')
+        observation=importlib.import_module('mindweave_harness.observation');clients=importlib.import_module('mindweave_harness.client')
+        loop=importlib.import_module('mindweave_harness.loop.agent_loop')
         with ExitStack() as stack:
             stack.enter_context(patch.object(observation,'observed_handler',lambda f,a,c,*rest:f(a,c)))
             stack.enter_context(patch.object(clients,'get_client',Mock()))
@@ -262,7 +262,7 @@ class ProtocolV2Tests(unittest.TestCase):
         self.assertEqual(verify(root,m)['actual_dispatches'],0)
 
     def test_budget_clock_cannot_reset_on_next_process(self):
-        observer=importlib.import_module('hexgent.observation');clients=importlib.import_module('hexgent.client');loop=importlib.import_module('hexgent.loop.agent_loop')
+        observer=importlib.import_module('mindweave_harness.observation');clients=importlib.import_module('mindweave_harness.client');loop=importlib.import_module('mindweave_harness.loop.agent_loop')
         cfg=dict(protocol_version=2,ledger_path=str(self.root/'shared.jsonl'),identity=self.identity,budget=self.limits,started_at=100)
         with ExitStack() as stack:
             for module,name in [(observer,'observed_handler'),(clients,'get_client'),(loop,'get_client')]:stack.enter_context(patch.object(module,name,Mock()))

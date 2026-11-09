@@ -22,8 +22,8 @@ def verify_recovery_sources(root,manifest,sealed):
     """独立核对Checkpoint和切点前日志；不信任汇总中的checksum_valid自述。"""
     proof=planned_crash(root,manifest)
     if proof is None:return
-    from hexgent.session.checkpoint import CheckpointStore
-    from hexgent.session.session_restore import _pending_run_state
+    from mindweave_harness.session.checkpoint import CheckpointStore
+    from mindweave_harness.session.session_restore import _pending_run_state
     from .protocol_v2 import strict_jsonl
     root=Path(root);e=json.loads((root/'observations/remaining-evidence.json').read_text())
     for name,key in [('crash-boundary.json','crash'),('restore.json','restore'),('continue-result.json','continue_result')]:

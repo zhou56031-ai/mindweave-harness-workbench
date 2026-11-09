@@ -141,8 +141,8 @@ class Responses:
         instructions = str(request.get("instructions", ""))
         kind = "CONTEXT_RECORD_EXTRACTION" if "提取可复用记录" in instructions else "MAIN_AGENT"
         # 使用正式 prompt 常量做身份识别，不通过 tools 是否为空猜测辅助调用。
-        from hexgent.memory.memory_prompts import CONTEXT_RECORD_EXTRACTION_INSTRUCTIONS
-        from hexgent.context.context_compaction import COMPACTION_INSTRUCTIONS
+        from mindweave_harness.memory.memory_prompts import CONTEXT_RECORD_EXTRACTION_INSTRUCTIONS
+        from mindweave_harness.context.context_compaction import COMPACTION_INSTRUCTIONS
         if instructions == CONTEXT_RECORD_EXTRACTION_INSTRUCTIONS:
             kind = "CONTEXT_RECORD_EXTRACTION"
         elif instructions.startswith(COMPACTION_INSTRUCTIONS):

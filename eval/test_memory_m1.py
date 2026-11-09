@@ -13,11 +13,11 @@ from unittest.mock import patch
 
 from eval.memory_m1 import CASES, answer_oracle, config_for, execute_stage, no_external_fact_source, pair_valid, prepare, scope_probes, summarize_run
 from eval.support.agent_contracts import FakeModel, text_response, tool_call
-from hexgent.agent_engine import AgentEngine
-from hexgent.memory import MemoryStore
-from hexgent.tool.tool_permission_pipeline import PermissionContext, evaluate_permission
-from hexgent.tool.tool_registry import get_tool
-from hexgent.tool.tool_execution import execute_tool_call
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.memory import MemoryStore
+from mindweave_harness.tool.tool_permission_pipeline import PermissionContext, evaluate_permission
+from mindweave_harness.tool.tool_registry import get_tool
+from mindweave_harness.tool.tool_execution import execute_tool_call
 
 
 class MemoryM1Tests(unittest.TestCase):
@@ -50,7 +50,7 @@ class MemoryM1Tests(unittest.TestCase):
         workspace.mkdir()
         engine = AgentEngine(config_for(self.manifest, "OFF"), workspace, memory_store=MemoryStore(vault))
         scope_probes(engine, vault)
-        for path in (vault / ".hexgent/memory/items/mem-test.md", self.root / "WRITE/workspace/.hexgent/sessions/transcript.jsonl"):
+        for path in (vault / ".mindweave_harness/memory/items/mem-test.md", self.root / "WRITE/workspace/.mindweave_harness/sessions/transcript.jsonl"):
             decision = evaluate_permission("read_file", get_tool("read_file"), {"path": str(path)}, engine.tool_context, PermissionContext("dont_ask"))
             self.assertEqual(decision.behavior, "deny")
 
@@ -116,8 +116,8 @@ class MemoryM1Tests(unittest.TestCase):
         self.assertIsNone(report["valid_execution"])
 
     def test_six_cases_production_loop_store_checkpoint_and_off_isolation(self):
-        loop = import_module("hexgent.loop.agent_loop")
-        turn = import_module("hexgent.loop.agent_turn")
+        loop = import_module("mindweave_harness.loop.agent_loop")
+        turn = import_module("mindweave_harness.loop.agent_turn")
         def perform(case, variant, write=None):
             if variant == "WRITE":
                 responses = [text_response(output=[tool_call("remember-1", "remember", json.dumps(dict(

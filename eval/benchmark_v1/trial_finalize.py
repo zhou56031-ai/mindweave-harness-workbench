@@ -17,11 +17,11 @@ def workspace_evidence(manager,env,contract,stages):
     initial=json.loads((root/'observations/initial-state-v2.json').read_text())
     if contract.task_id=='T05':
         from dataclasses import asdict
-        from hexgent.memory.memory_store import MemoryStore
+        from mindweave_harness.memory.memory_store import MemoryStore
         raw=records(env);sessions=[s['session_id'] for s in stages]
         sessions.extend(sid for sid,_ in raw if sid not in sessions);injections=[]
         for sid in sessions:
-            p=env.workdir/'.hexgent/sessions'/sid/'observation.jsonl'
+            p=env.workdir/'.mindweave_harness/sessions'/sid/'observation.jsonl'
             if p.exists():
                 for row in strict_jsonl(p):
                     if row['event']=='memory_injected':injections.append(dict(session_id=sid,memories=row['memories']))

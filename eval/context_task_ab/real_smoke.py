@@ -9,10 +9,10 @@ from types import SimpleNamespace
 from time import perf_counter
 from urllib.parse import urlsplit
 
-from hexgent.agent_engine import AgentEngine
-from hexgent.client import get_client,get_model
-from hexgent.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS
-from hexgent.context.context_compaction import COMPACTION_INSTRUCTIONS
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.client import get_client,get_model
+from mindweave_harness.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS
+from mindweave_harness.context.context_compaction import COMPACTION_INSTRUCTIONS
 from eval.context_management.c1_independent import plain
 from .harness import FIXTURE,config,profile,manifest,capture_before_compaction,RequestBudget,BudgetStop
 from .private_oracle.oracle import assess
@@ -97,7 +97,7 @@ def main():
     if model!='gpt-6.1-sol' or host not in {'rightapi.ai','www.rightapi.ai'}:raise SystemExit('MODEL_OR_PROVIDER_MISMATCH：停止，不自动更换路由')
     output=args.output_dir or Path(__file__).parent/'runs'/('is1-smoke-'+datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ'))
     output.mkdir(parents=True,exist_ok=False);workspace=output/'workspace';shutil.copytree(FIXTURE,workspace)
-    before=manifest(ROOT/'hexgent');frozen=manifest(FIXTURE);cfg=config(workspace)
+    before=manifest(ROOT/'mindweave_harness');frozen=manifest(FIXTURE);cfg=config(workspace)
     save(output/'manifest.json',dict(task=CONTRACT,model=model,provider_host=host,config=asdict(cfg),fixture_hashes=frozen,
         production_hashes=before,max_provider_attempts=12,max_estimated_tokens_including_output=200000,
         hidden_retries=0,request_timeout_seconds=300,scope='ONE_ON_TASK_NO_AB_NO_RETRY',
@@ -126,7 +126,7 @@ def main():
     finished=[r['payload'] for r in transcript if r['type']=='agent_run_finished']
     terminal=finished[-1].get('status') if finished else None
     captured_status=captured.get('status') if captured else None
-    integrity=before==manifest(ROOT/'hexgent') and frozen==manifest(FIXTURE)
+    integrity=before==manifest(ROOT/'mindweave_harness') and frozen==manifest(FIXTURE)
     result=dict(status='SMOKE_INCOMPLETE' if stopped or not integrity or not complete else
         'SNAPSHOT_CAPTURED_AWAITING_BRANCH_REVIEW' if captured_status=='SNAPSHOT_CAPTURED' else
         'SMOKE_TASK_PASS' if terminal=='completed' and oracle['oracle_pass'] else 'SMOKE_TASK_FAIL',

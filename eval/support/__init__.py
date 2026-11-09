@@ -1,1 +1,1 @@
-"""Hexgent 评测夹具。"""
+"""MindWeave Harness 评测夹具。"""

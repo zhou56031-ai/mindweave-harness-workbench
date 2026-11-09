@@ -3,8 +3,8 @@ import json
 from pathlib import Path
 import subprocess
 
-from hexgent.utils.token_estimator import estimate_value_tokens
-from hexgent.context.key_fact_snapshot import snapshot_message
+from mindweave_harness.utils.token_estimator import estimate_value_tokens
+from mindweave_harness.context.key_fact_snapshot import snapshot_message
 from .offline import ROOT,save
 from .factorial_pilot import check_integrity,file_hashes
 

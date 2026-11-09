@@ -8,17 +8,17 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from hexgent.adapters.web.run_manager import RunManager
-from hexgent.agent_engine import AgentEngine, RunRequest
-from hexgent.config import HexgentConfig
-from hexgent.context import ContextManager
-from hexgent.events import AgentLoopResult, RunFinishedEvent
-from hexgent.integration.protocol import RuntimeCommand
-from hexgent.integration.runtime_adapter import RuntimeCommandAdapter
-from hexgent.loop.loop_state import LoopState
-from hexgent.session import Session
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.plan import InMemoryPlanStore
+from mindweave_harness.adapters.web.run_manager import RunManager
+from mindweave_harness.agent_engine import AgentEngine, RunRequest
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.context import ContextManager
+from mindweave_harness.events import AgentLoopResult, RunFinishedEvent
+from mindweave_harness.integration.protocol import RuntimeCommand
+from mindweave_harness.integration.runtime_adapter import RuntimeCommandAdapter
+from mindweave_harness.loop.loop_state import LoopState
+from mindweave_harness.session import Session
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.plan import InMemoryPlanStore
 
 
 class _ProbeEngine:
@@ -72,12 +72,12 @@ class _ProbeEngineFactory:
     def __init__(self) -> None:
         self.restored_engines: list[_ProbeEngine] = []
 
-    def __call__(self, config: HexgentConfig, workdir: Path) -> _ProbeEngine:
+    def __call__(self, config: MindWeaveHarnessConfig, workdir: Path) -> _ProbeEngine:
         return _ProbeEngine(AgentEngine.create(config, workdir))
 
     def restore(
         self,
-        config: HexgentConfig,
+        config: MindWeaveHarnessConfig,
         workdir: Path,
         session_id: str,
     ) -> _ProbeEngine:
@@ -119,7 +119,7 @@ class RuntimeCommandAdapterPhase1Test(unittest.IsolatedAsyncioTestCase):
         """Browser history 只读投影来自 Transcript，不依赖旧 RunHandle。"""
         with TemporaryDirectory() as directory:
             root = Path(directory)
-            manager_a = RunManager(HexgentConfig(), root, engine_factory=_ProbeEngineFactory())
+            manager_a = RunManager(MindWeaveHarnessConfig(), root, engine_factory=_ProbeEngineFactory())
             adapter_a = RuntimeCommandAdapter(manager_a)
 
             decision = await adapter_a.handle(_command("cmd-history", "StartRun"))
@@ -134,7 +134,7 @@ class RuntimeCommandAdapterPhase1Test(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(messages_before[1]["content"], "暂停")
 
             # 进程重启后仍从相同 durable facts 重建相同 Browser-safe 历史。
-            manager_b = RunManager(HexgentConfig(), root, engine_factory=_ProbeEngineFactory())
+            manager_b = RunManager(MindWeaveHarnessConfig(), root, engine_factory=_ProbeEngineFactory())
             adapter_b = RuntimeCommandAdapter(manager_b)
             self.assertEqual(adapter_b.get_run_messages("R1"), messages_before)
 
@@ -142,7 +142,7 @@ class RuntimeCommandAdapterPhase1Test(unittest.IsolatedAsyncioTestCase):
         """Start Ack 后，同进程控制命令必须能由 WS runId 定位 internal run。"""
         with TemporaryDirectory() as directory:
             root = Path(directory)
-            manager = RunManager(HexgentConfig(), root, engine_factory=_ProbeEngineFactory())
+            manager = RunManager(MindWeaveHarnessConfig(), root, engine_factory=_ProbeEngineFactory())
             adapter = RuntimeCommandAdapter(manager)
 
             start = await adapter.handle(_command("cmd-start-live", "StartRun"))
@@ -167,7 +167,7 @@ class RuntimeCommandAdapterPhase1Test(unittest.IsolatedAsyncioTestCase):
         """Steer 使用 WS runId 找到当前 RunControl，不把它当 internal run_id。"""
         with TemporaryDirectory() as directory:
             root = Path(directory)
-            manager = RunManager(HexgentConfig(), root, engine_factory=_ProbeEngineFactory())
+            manager = RunManager(MindWeaveHarnessConfig(), root, engine_factory=_ProbeEngineFactory())
             adapter = RuntimeCommandAdapter(manager)
 
             await adapter.handle(_command("cmd-start-steer", "StartRun"))
@@ -197,7 +197,7 @@ class RuntimeCommandAdapterPhase1Test(unittest.IsolatedAsyncioTestCase):
             root = Path(directory)
             callbacks: list[list[dict[str, object]]] = []
             manager = RunManager(
-                HexgentConfig(),
+                MindWeaveHarnessConfig(),
                 root,
                 engine_factory=_ProbeEngineFactory(),
                 lifecycle_callback=lambda _session_id, records: callbacks.append(records),
@@ -236,7 +236,7 @@ class RuntimeCommandAdapterPhase1Test(unittest.IsolatedAsyncioTestCase):
         with TemporaryDirectory() as directory:
             root = Path(directory)
             factory_a = _ProbeEngineFactory()
-            manager_a = RunManager(HexgentConfig(), root, engine_factory=factory_a)
+            manager_a = RunManager(MindWeaveHarnessConfig(), root, engine_factory=factory_a)
             adapter_a = RuntimeCommandAdapter(manager_a)
 
             start = await adapter_a.handle(
@@ -250,7 +250,7 @@ class RuntimeCommandAdapterPhase1Test(unittest.IsolatedAsyncioTestCase):
 
             # 1. 进程重启后仅依赖 Transcript；旧 RunHandle 不传入新 Manager。
             factory_b = _ProbeEngineFactory()
-            manager_b = RunManager(HexgentConfig(), root, engine_factory=factory_b)
+            manager_b = RunManager(MindWeaveHarnessConfig(), root, engine_factory=factory_b)
             adapter_b = RuntimeCommandAdapter(manager_b)
             self.assertEqual(adapter_b._run_associations["R1"].session_id, session_id)
             self.assertEqual(adapter_b._run_associations["R1"].latest_internal_run_id, internal_a)
@@ -278,7 +278,7 @@ class RuntimeCommandAdapterPhase1Test(unittest.IsolatedAsyncioTestCase):
 
             # 4. 再次重启后，Resume 同样只恢复 Session 并创建 internal C。
             factory_c = _ProbeEngineFactory()
-            manager_c = RunManager(HexgentConfig(), root, engine_factory=factory_c)
+            manager_c = RunManager(MindWeaveHarnessConfig(), root, engine_factory=factory_c)
             adapter_c = RuntimeCommandAdapter(manager_c)
             self.assertEqual(adapter_c._run_associations["R1"].latest_internal_run_id, internal_b)
             resumed = await adapter_c.handle(_command("cmd-resume", "ResumeRun"))
@@ -301,7 +301,7 @@ class RuntimeCommandAdapterPhase1Test(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(wrong_conversation.reason_code, "CONVERSATION_MISMATCH")
 
             adapter_d = RuntimeCommandAdapter(
-                RunManager(HexgentConfig(), root, engine_factory=_ProbeEngineFactory()),
+                RunManager(MindWeaveHarnessConfig(), root, engine_factory=_ProbeEngineFactory()),
             )
             self.assertEqual(
                 await adapter_d.handle(
@@ -334,7 +334,7 @@ class RuntimeCommandAdapterPhase1Test(unittest.IsolatedAsyncioTestCase):
                 ),
             )
 
-            manager = RunManager(HexgentConfig(), root, engine_factory=_ProbeEngineFactory())
+            manager = RunManager(MindWeaveHarnessConfig(), root, engine_factory=_ProbeEngineFactory())
             adapter = RuntimeCommandAdapter(manager)
             decision = await adapter.handle(_command("cmd-no-checkpoint", "ContinueRun"))
 
@@ -345,7 +345,7 @@ class RuntimeCommandAdapterPhase1Test(unittest.IsolatedAsyncioTestCase):
     @staticmethod
     def _internal_run_ids(root: Path, session_id: str) -> list[str]:
         """读取 Transcript 中的 internal run 标识，验证它们始终属于同一 WS Run。"""
-        records = (root / ".hexgent" / "sessions" / session_id / "transcript.jsonl").read_text(
+        records = (root / ".mindweave_harness" / "sessions" / session_id / "transcript.jsonl").read_text(
             encoding="utf-8",
         ).splitlines()
         return [
@@ -357,7 +357,7 @@ class RuntimeCommandAdapterPhase1Test(unittest.IsolatedAsyncioTestCase):
     @staticmethod
     def _workspace_runs(root: Path, session_id: str) -> list[str]:
         """读取每个 internal run 写入的稳定 WS logical run 身份。"""
-        records = (root / ".hexgent" / "sessions" / session_id / "transcript.jsonl").read_text(
+        records = (root / ".mindweave_harness" / "sessions" / session_id / "transcript.jsonl").read_text(
             encoding="utf-8",
         ).splitlines()
         return [

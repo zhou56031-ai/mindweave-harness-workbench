@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 import unittest
 
-from hexgent.context import ContextManager, ContextLimits
-from hexgent.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS, EXTRACTION_PROMPT_VERSION, extract_snapshot
+from mindweave_harness.context import ContextManager, ContextLimits
+from mindweave_harness.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS, EXTRACTION_PROMPT_VERSION, extract_snapshot
 from tests.test_key_fact_remediation import Model
 
 

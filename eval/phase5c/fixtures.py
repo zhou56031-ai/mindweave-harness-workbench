@@ -27,14 +27,14 @@ def baseline_path(fixture_id: str) -> Path:
 def cloned_workspace(fixture_id: str) -> Iterator[Path]:
     """为每一次 Agent run 产生独立工作区，绝不复用已修改目录。"""
 
-    with TemporaryDirectory(prefix=f"hexgent-phase5c-{fixture_id}-") as directory:
+    with TemporaryDirectory(prefix=f"mindweave_harness-phase5c-{fixture_id}-") as directory:
         target = Path(directory) / "workspace"
         shutil.copytree(baseline_path(fixture_id), target)
         yield target
 
 
 def freeze_snapshot(workspace: Path, destination: Path) -> Path:
-    """冻结完整 Stage A workspace；L1 明确要求连同 .hexgent durable state 保存。"""
+    """冻结完整 Stage A workspace；L1 明确要求连同 .mindweave_harness durable state 保存。"""
 
     if destination.exists():
         raise FileExistsError(f"snapshot 已存在：{destination}")
@@ -48,14 +48,14 @@ def cloned_snapshot(snapshot: Path) -> Iterator[Path]:
 
     if not snapshot.is_dir():
         raise FileNotFoundError(f"snapshot 不存在：{snapshot}")
-    with TemporaryDirectory(prefix="hexgent-phase5c-stage-b-") as directory:
+    with TemporaryDirectory(prefix="mindweave_harness-phase5c-stage-b-") as directory:
         target = Path(directory) / "workspace"
         shutil.copytree(snapshot, target)
         yield target
 
 
-def workspace_manifest(workspace: Path, *, include_hexgent: bool = False) -> dict[str, str]:
-    """返回内容寻址 manifest；默认忽略 Runtime 自身写入的 .hexgent 工件。"""
+def workspace_manifest(workspace: Path, *, include_mindweave_harness: bool = False) -> dict[str, str]:
+    """返回内容寻址 manifest；默认忽略 Runtime 自身写入的 .mindweave_harness 工件。"""
 
     manifest: dict[str, str] = {}
     for path in sorted(workspace.rglob("*")):
@@ -64,7 +64,7 @@ def workspace_manifest(workspace: Path, *, include_hexgent: bool = False) -> dic
         relative = path.relative_to(workspace)
         if "__pycache__" in relative.parts or path.suffix == ".pyc":
             continue
-        if not include_hexgent and relative.parts and relative.parts[0] == ".hexgent":
+        if not include_mindweave_harness and relative.parts and relative.parts[0] == ".mindweave_harness":
             continue
         manifest[str(relative)] = sha256(path.read_bytes()).hexdigest()
     return manifest

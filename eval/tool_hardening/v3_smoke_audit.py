@@ -18,7 +18,7 @@ def main():
     raw = json.loads((source / "artifact.json").read_text())
     report = json.loads((args.run / "report.json").read_text())
     workspace = source / "workspace"
-    transcript = next((workspace / ".hexgent" / "sessions").glob("*/transcript.jsonl"))
+    transcript = next((workspace / ".mindweave_harness" / "sessions").glob("*/transcript.jsonl"))
     records = [json.loads(line) for line in transcript.read_text().splitlines()]
     evidence = oracle(TASKS["tool_pipeline"], records, raw["terminal"].get("output_text", ""), workspace)
     layers = layered_oracles(records, raw["turns"], evidence, workspace)

@@ -5,10 +5,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from hexgent.plan import InMemoryPlanStore
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.tool.tool_execution import execute_tool_call
-from hexgent.workspace import find_workspace_root
+from mindweave_harness.plan import InMemoryPlanStore
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.tool.tool_execution import execute_tool_call
+from mindweave_harness.workspace import find_workspace_root
 
 
 class WorkspaceTest(unittest.TestCase):
@@ -18,7 +18,7 @@ class WorkspaceTest(unittest.TestCase):
         """应返回最近包含 pyproject.toml 的父目录。"""
         with TemporaryDirectory() as directory:
             root = Path(directory)
-            package = root / "hexgent" / "nested"
+            package = root / "mindweave_harness" / "nested"
             package.mkdir(parents=True)
             (root / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
 

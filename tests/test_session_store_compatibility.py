@@ -8,11 +8,11 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import unittest
 
-from hexgent.agent_engine import AgentEngine, RunRequest
-from hexgent.config import HexgentConfig
-from hexgent.events import ToolFinishedEvent
-from hexgent.run_control import RunControl
-from hexgent.session.session_store import SessionStore
+from mindweave_harness.agent_engine import AgentEngine, RunRequest
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.events import ToolFinishedEvent
+from mindweave_harness.run_control import RunControl
+from mindweave_harness.session.session_store import SessionStore
 from eval.support.agent_contracts import FakeModel, text_response, tool_call
 
 
@@ -50,7 +50,7 @@ class SessionStoreCompatibilityTests(unittest.TestCase):
         code = '''
 from pathlib import Path
 import sys
-from hexgent.session.session_store import SessionStore
+from mindweave_harness.session.session_store import SessionStore
 s = SessionStore(Path(sys.argv[1]), session_id=sys.argv[2])
 print("READY", flush=True)
 sys.stdin.readline()
@@ -98,7 +98,7 @@ except RuntimeError as error:
                 self.assertEqual(self.store.transcript_path.read_text(), content)
 
     def test_r6_lifecycle_then_formal_restore_continue(self):
-        base = HexgentConfig()
+        base = MindWeaveHarnessConfig()
         cfg = replace(base, context_extraction=replace(base.context_extraction, enabled=False),
                       memory_retrieval=replace(base.memory_retrieval, enabled=False))
         engine = AgentEngine(cfg, self.root)

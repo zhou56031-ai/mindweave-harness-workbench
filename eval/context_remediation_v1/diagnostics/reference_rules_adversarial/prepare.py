@@ -39,7 +39,7 @@ def main():
         ROOT/"eval/context_remediation_v1/runs/r_sparse_channel_corrected_v1",
         ROOT/"eval/context_remediation_v1/runs/extractor-quality-pilot-v1-20261012"]
     preserved={str(p):file_hashes(p) for p in roots}
-    prod={str(p.relative_to(ROOT)):sha256(p.read_bytes()).hexdigest() for p in sorted((ROOT/"hexgent").rglob("*.py"))}
+    prod={str(p.relative_to(ROOT)):sha256(p.read_bytes()).hexdigest() for p in sorted((ROOT/"mindweave_harness").rglob("*.py"))}
     cases=[]
     expected={}
     def add(identity,category,polarity,text,refs,sources,claims,answer,rationale,**kwargs):

@@ -1,4 +1,4 @@
-"""纯离线合同验收；不导入 Hexgent Runtime，也不访问网络或业务服务。"""
+"""纯离线合同验收；不导入 MindWeave Harness Runtime，也不访问网络或业务服务。"""
 
 import json
 from pathlib import Path
@@ -91,7 +91,7 @@ class VerifierTests(unittest.TestCase):
             case_id=self.contract.case_id, trial_id="trial-001", environment_kind="business_fixture",
             phase="protocol_smoke", baseline_id=self.contract.baseline_id, verifier_version="1",
             task_contract_sha256=self.contract.digest(), contract=ArtifactReference(path="contract.json"),
-            run_config={"variant": "full", "provider_execution": False}, code_versions={"hexgent": "offline-fixture"},
+            run_config={"variant": "full", "provider_execution": False}, code_versions={"mindweave_harness": "offline-fixture"},
             sessions=(SessionArtifacts(session_id="s1", transcript=ArtifactReference(path="sessions/s1/transcript.jsonl"),
                                        run_reports=(ArtifactReference(path="sessions/s1/reports/run-001.json"),), provider_usage=()),
                       SessionArtifacts(session_id="s2", transcript=ArtifactReference(path="sessions/s2/transcript.jsonl"),

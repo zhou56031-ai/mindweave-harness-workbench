@@ -158,7 +158,7 @@ if __name__ == "__main__":
     if not args.execute:
         print(json.dumps({"status": "NOT_RUN", "request": PREFLIGHT_REQUEST}, ensure_ascii=False))
     else:
-        from hexgent.client import get_client, get_model
+        from mindweave_harness.client import get_client, get_model
         result = run_preflight(get_client(), model=get_model())
         if args.output is not None:
             write_preflight_artifact(args.output, result)

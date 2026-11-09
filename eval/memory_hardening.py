@@ -10,9 +10,9 @@ import shlex
 import tempfile
 import re
 
-from hexgent.memory.memory_store import _parse_item
-from hexgent.observation import source_fingerprint, summarize
-from hexgent.config import load_config
+from mindweave_harness.memory.memory_store import _parse_item
+from mindweave_harness.observation import source_fingerprint, summarize
+from mindweave_harness.config import load_config
 
 
 CASES = {
@@ -54,12 +54,12 @@ def prepare(output_dir):
     if output_dir.exists():
         raise ValueError("输出目录已存在，请使用新的 run 目录")
     # 1. 配置沿用当前生产配置，仅明确本次已授权的自动审批模式。
-    config = (repo / "hexgent.toml").read_text(encoding="utf-8")
+    config = (repo / "mindweave_harness.toml").read_text(encoding="utf-8")
     if "[permission]" in config:
         raise ValueError("现有配置含 permission section，请先明确自动审批配置，避免重复覆盖")
     config += '\n[permission]\ndefault_mode = "auto_approve"\n'
     output_dir.mkdir(parents=True)
-    workspace_root = Path(tempfile.mkdtemp(prefix="hexgent-memory-eval-"))
+    workspace_root = Path(tempfile.mkdtemp(prefix="mindweave_harness-memory-eval-"))
     manifest = {
         "revision": "memory-real-v1", "evidence_type": "REAL_MODEL_BEHAVIORAL_EVIDENCE",
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -72,7 +72,7 @@ def prepare(output_dir):
         workspace.mkdir()
         # 2. 确保 CLI 不向上寻找并误用仓库工作区及其 Memory。
         (workspace / "pyproject.toml").write_text('# Memory Eval 独立工作区标记\n', encoding="utf-8")
-        (workspace / "hexgent.toml").write_text(config, encoding="utf-8")
+        (workspace / "mindweave_harness.toml").write_text(config, encoding="utf-8")
         for stage in ("a", "b"):
             (output_dir / f"{name}-{stage}.txt").write_text(case[stage] + "\n", encoding="utf-8")
         manifest["cases"][name] = {**case, "workspace": str(workspace),
@@ -83,7 +83,7 @@ def prepare(output_dir):
                 "# 使用当前生产 Provider 配置；仓库 .env 可能覆盖 export，按 Provider 观测确认实际模型。"]
     for name, case in manifest["cases"].items():
         launch = (f"cd {shlex.quote(case['workspace'])}\n"
-                  f"PYTHONPATH={shlex.quote(str(repo))} {shlex.quote(str(repo / '.venv/bin/python'))} -m hexgent")
+                  f"PYTHONPATH={shlex.quote(str(repo))} {shlex.quote(str(repo / '.venv/bin/python'))} -m mindweave_harness")
         commands.extend([f"\n# {name} Session A：将下面显示的内容粘入 CLI，空行发送，完成后 exit。",
                          f"cat {shlex.quote(str(output_dir / (name + '-a.txt')))}", launch,
                          f"\n# {name} Session B：重新启动，粘入 B 提示，完成后 exit。",
@@ -105,7 +105,7 @@ def _payloads(rows, kind):
 def _session(path, workspace, query):
     """只接受该独立工作区的一次新 Session / 单次任务，不截取漂亮的 Run。"""
     path = path.resolve()
-    if path.parent != (workspace / ".hexgent/sessions").resolve():
+    if path.parent != (workspace / ".mindweave_harness/sessions").resolve():
         raise ValueError("Session 不属于指定评测工作区")
     rows = _rows(path / "transcript.jsonl")
     starts = _payloads(rows, "session_started")
@@ -193,7 +193,7 @@ def analyze(output_dir, name, session_a, session_b):
     source_ok = all(any(r.get("event") == "source_snapshot" and
                        r.get("runtime_sha256") == manifest["runtime_sha256"] for r in obs)
                     for obs in (a_obs, b_obs))
-    config_ok = sha256((workspace / "hexgent.toml").read_bytes()).hexdigest() == case["config_sha256"]
+    config_ok = sha256((workspace / "mindweave_harness.toml").read_bytes()).hexdigest() == case["config_sha256"]
     effective_config_ok = all(any(r.get("event") == "run_configuration"
                                  and r.get("config") == case["effective_config"]
                                  and r.get("permission_mode") == "auto_approve"
@@ -205,7 +205,7 @@ def analyze(output_dir, name, session_a, session_b):
     provider_ok = len(providers[0]) == 1 and providers[0] == providers[1]
     ends_a = [r["created_at"] for r in a_rows if r.get("type") == "agent_run_finished"]
     chronology_ok = bool(ends_a) and datetime.fromisoformat(ends_a[-1].replace("Z", "+00:00")) < datetime.fromisoformat(b_rows[0]["created_at"].replace("Z", "+00:00"))
-    items = [_parse_item(path) for path in sorted((workspace / ".hexgent/memory/items").glob("mem-*.md"))]
+    items = [_parse_item(path) for path in sorted((workspace / ".mindweave_harness/memory/items").glob("mem-*.md"))]
     report = evaluate(case, a_rows, b_rows, a_obs, b_obs, items, a_terminal, b_terminal)
     report.update(case=name, session_a=str(session_a.resolve()), session_b=str(session_b.resolve()),
                   source_snapshot_matches=source_ok, config_matches=config_ok,
@@ -230,7 +230,7 @@ def analyze_all(output_dir):
     for name, case in manifest["cases"].items():
         try:
             candidates = {"a": [], "b": []}
-            for session in sorted((Path(case["workspace"]) / ".hexgent/sessions").glob("*")):
+            for session in sorted((Path(case["workspace"]) / ".mindweave_harness/sessions").glob("*")):
                 if not (session / "transcript.jsonl").is_file():
                     continue
                 starts = _payloads(_rows(session / "transcript.jsonl"), "session_started")

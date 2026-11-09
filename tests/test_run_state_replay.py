@@ -10,16 +10,16 @@ import subprocess
 import sys
 import unittest
 
-from hexgent.agent_engine import AgentEngine,RunRequest
-from hexgent.config import HexgentConfig
-from hexgent.context import ContextManager
-from hexgent.loop.loop_state import LoopState
-from hexgent.plan import InMemoryPlanStore
-from hexgent.session import Session,SessionRestorer
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.tool.tool_registry import TOOL_REGISTRY,RegisteredTool
-from hexgent.tool.tool_validation import TOOL_SCHEMAS
-from hexgent.session.checkpoint import CheckpointStore
+from mindweave_harness.agent_engine import AgentEngine,RunRequest
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.context import ContextManager
+from mindweave_harness.loop.loop_state import LoopState
+from mindweave_harness.plan import InMemoryPlanStore
+from mindweave_harness.session import Session,SessionRestorer
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.tool.tool_registry import TOOL_REGISTRY,RegisteredTool
+from mindweave_harness.tool.tool_validation import TOOL_SCHEMAS
+from mindweave_harness.session.checkpoint import CheckpointStore
 
 
 class Call(SimpleNamespace):
@@ -44,8 +44,8 @@ def crash_child(root):
     def commit_then_crash():
         (root/'operation.txt').write_text('one submission')
         os._exit(73)  # 真实进程退出；不写finished，不运行Python finally。
-    with patch.dict(TOOL_REGISTRY,{'replay_write':RegisteredTool(commit_then_crash,permission_capability='workspace_write')}),patch.dict(TOOL_SCHEMAS,{'replay_write':{'type':'object','properties':{},'required':[],'additionalProperties':False}}),patch('hexgent.loop.agent_turn.get_model',return_value='offline'),patch('hexgent.loop.agent_turn.call_model',scripted([response('read_file','read-1',{'path':'seed.txt'}),response('replay_write','write-1')])):
-        engine=AgentEngine.create(HexgentConfig(),root);engine.session.initialize_runtime_session('replay-test')
+    with patch.dict(TOOL_REGISTRY,{'replay_write':RegisteredTool(commit_then_crash,permission_capability='workspace_write')}),patch.dict(TOOL_SCHEMAS,{'replay_write':{'type':'object','properties':{},'required':[],'additionalProperties':False}}),patch('mindweave_harness.loop.agent_turn.get_model',return_value='offline'),patch('mindweave_harness.loop.agent_turn.call_model',scripted([response('read_file','read-1',{'path':'seed.txt'}),response('replay_write','write-1')])):
+        engine=AgentEngine.create(MindWeaveHarnessConfig(),root);engine.session.initialize_runtime_session('replay-test')
         list(engine.run('execute and verify',client=object(),user_confirmation=lambda *a:'allow'))
 
 
@@ -121,7 +121,7 @@ class RunStateReplayTest(unittest.TestCase):
         self.assertEqual(self.restored().pending_run_state.tool_calls,4)
 
     def test_inflight_model_or_auxiliary_without_committed_usage_refuses(self):
-        from hexgent.session.session_restore import _pending_run_state
+        from mindweave_harness.session.session_restore import _pending_run_state
         self.session.invalidate_run_state('main_model');self.assertIsNone(_pending_run_state(self.checkpoint,self.session.store.read_transcript()))
         self.session.record_run_state(self.state);self.session.invalidate_run_state('context_record_extraction')
         self.assertIsNone(self.restored().pending_run_state)
@@ -134,7 +134,7 @@ class RunStateReplayTest(unittest.TestCase):
         self.assertEqual(self.restored().pending_run_state.input_tokens,150)
 
     def test_unknown_schema_cross_run_and_decreasing_counters_refuse(self):
-        from hexgent.session.session_restore import _pending_run_state
+        from mindweave_harness.session.session_restore import _pending_run_state
         rows=self.session.store.read_transcript()
         for change in [{'run_state_version':2},{'run_id':'other'},{'run_state':replace(self.state,input_tokens=1).to_snapshot().to_dict()}]:
             with self.subTest(change=change):
@@ -146,7 +146,7 @@ class RunStateReplayTest(unittest.TestCase):
         self.assertIsNone(self.restored().pending_run_state)
 
     def test_uncommitted_no_tool_response_not_silently_restarted(self):
-        from hexgent.session.session_restore import _pending_run_state
+        from mindweave_harness.session.session_restore import _pending_run_state
         self.model_commit([]);self.assertIsNone(_pending_run_state(self.checkpoint,self.session.store.read_transcript()))
         self.session.record_run_state(self.state,run_status='terminal');self.assertIsNone(self.restored().pending_run_state)
 
@@ -158,7 +158,7 @@ class RunStateReplayTest(unittest.TestCase):
         self.assertEqual(self.restored().pending_run_state.model_rounds,0)
 
     def test_legacy_stateful_suffix_stays_refused(self):
-        from hexgent.session.session_restore import _pending_run_state
+        from mindweave_harness.session.session_restore import _pending_run_state
         rows=self.session.store.read_transcript()
         for r in rows:r['payload'].pop('run_state_version',None)
         rows.append(dict(sequence=rows[-1]['sequence']+1,type='model_response_completed',payload={}))
@@ -171,14 +171,14 @@ class RunStateReplayTest(unittest.TestCase):
         self.assertEqual(self.restored().pending_run_state.tool_calls,4)
 
     def test_paused_checkpoint_does_not_charge_restore_downtime(self):
-        from hexgent.session.session_restore import _pending_run_state
+        from mindweave_harness.session.session_restore import _pending_run_state
         cp=replace(self.checkpoint,run_status='continuable');rows=self.session.store.read_transcript()
         diagnostic=dict(sequence=rows[-1]['sequence']+1,type='session_recovered',payload={},created_at='2099-01-01T00:00:00+00:00')
         state=_pending_run_state(cp,rows+[diagnostic])
         self.assertEqual(state.elapsed_seconds,cp.run_state['elapsed_seconds'])
 
     def test_frozen_control_state_and_nonfinite_elapsed(self):
-        from hexgent.loop.loop_state import RunStateSnapshot
+        from mindweave_harness.loop.loop_state import RunStateSnapshot
         self.state=replace(self.state,mode='finalizing',transition='budget_finalization',stop_reason='max_tool_calls',plan_completion_nudges=1,reactive_compaction_attempted=True)
         self.session.record_run_state(self.state)
         restored=self.restored().pending_run_state
@@ -187,18 +187,18 @@ class RunStateReplayTest(unittest.TestCase):
             with self.assertRaises(ValueError):RunStateSnapshot.from_dict({**self.state.to_snapshot().to_dict(),'elapsed_seconds':bad})
 
     def test_child_crash_budget_is_not_refilled_by_continue(self):
-        from hexgent.loop.limits import LoopLimits
+        from mindweave_harness.loop.limits import LoopLimits
         with TemporaryDirectory() as tmp:
             root=Path(tmp)
             child=subprocess.run([sys.executable,'-m','tests.test_run_state_replay','--crash-child',tmp],cwd=Path(__file__).resolve().parents[1],capture_output=True,timeout=20)
             self.assertEqual(child.returncode,73,child.stderr.decode())
-            engine=AgentEngine.restore(HexgentConfig(loop=LoopLimits(max_tool_calls=2)),root,'replay-test')
+            engine=AgentEngine.restore(MindWeaveHarnessConfig(loop=LoopLimits(max_tool_calls=2)),root,'replay-test')
             requests=[]
             def finalization(*args,**kwargs):
                 requests.append(kwargs)
                 if False:yield
                 return response()
-            with patch('hexgent.loop.agent_turn.get_model',return_value='offline'),patch('hexgent.loop.agent_turn.call_model',finalization):
+            with patch('mindweave_harness.loop.agent_turn.get_model',return_value='offline'),patch('mindweave_harness.loop.agent_turn.call_model',finalization):
                 list(engine.run(RunRequest.continue_run(),client=object()))
             self.assertEqual(len(requests),1);self.assertNotIn('tools',requests[0])
             records=engine.session.store.read_transcript()
@@ -212,18 +212,18 @@ class RunStateReplayTest(unittest.TestCase):
             child=subprocess.run([sys.executable,'-m','tests.test_run_state_replay','--crash-child',tmp],cwd=Path(__file__).resolve().parents[1],capture_output=True,timeout=20)
             self.assertEqual(child.returncode,73,child.stderr.decode())
             self.assertEqual((root/'operation.txt').read_text(),'one submission')
-            engine=AgentEngine.restore(HexgentConfig(),root,'replay-test')
+            engine=AgentEngine.restore(MindWeaveHarnessConfig(),root,'replay-test')
             self.assertTrue(engine.has_continuable_run)
             s=engine._pending_run_state
             self.assertEqual((s.model_rounds,s.tool_calls,s.input_tokens,s.output_tokens),(2,2,20,4))
             outputs=[m for m in engine.context_manager.model_messages() if isinstance(m,dict) and m.get('call_id')=='write-1' and m.get('type')=='function_call_output']
             self.assertEqual(len(outputs),1);self.assertIn('核验',outputs[0]['output'])
-            with patch('hexgent.loop.agent_turn.get_model',return_value='offline'),patch('hexgent.loop.agent_turn.call_model',scripted([response('read_file','verify-1',{'path':'operation.txt'}),response()])):
+            with patch('mindweave_harness.loop.agent_turn.get_model',return_value='offline'),patch('mindweave_harness.loop.agent_turn.call_model',scripted([response('read_file','verify-1',{'path':'operation.txt'}),response()])):
                 list(engine.run(RunRequest.continue_run(),client=object(),user_confirmation=lambda *a:'allow'))
             self.assertEqual((root/'operation.txt').read_text(),'one submission')
             rows=engine.session.store.read_transcript()
             self.assertEqual(sum(r['type']=='tool_execution_dispatched' and r['payload']['tool_name']=='replay_write' for r in rows),1)
-            self.assertFalse(AgentEngine.restore(HexgentConfig(),root,'replay-test').has_continuable_run)
+            self.assertFalse(AgentEngine.restore(MindWeaveHarnessConfig(),root,'replay-test').has_continuable_run)
 
 
 if __name__=='__main__':

@@ -42,7 +42,7 @@ def comparable(original):
             if Path(name).parent!=Path(__file__).parent or Path(name).name not in permitted:raise ValueError('冻结执行输入变化：'+name)
             changes.append(name)
     head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
-    if head!=m['git']['hexgent_head']:raise ValueError('Git HEAD变化')
+    if head!=m['git']['mindweave_harness_head']:raise ValueError('Git HEAD变化')
     return m,case,changes
 
 

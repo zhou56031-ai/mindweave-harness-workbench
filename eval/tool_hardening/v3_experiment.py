@@ -10,10 +10,10 @@ from statistics import median, mean
 import subprocess
 import sys
 
-from hexgent.client import get_client, get_model
-from hexgent.config import HexgentConfig
-from hexgent.loop.limits import LoopLimits
-from hexgent.tool.tool_scheduler import ToolParallelLimits, partition_tool_calls
+from mindweave_harness.client import get_client, get_model
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.loop.limits import LoopLimits
+from mindweave_harness.tool.tool_scheduler import ToolParallelLimits, partition_tool_calls
 from eval.support.agent_contracts import tool_call
 from .v2_runner import ROOT, digest, stats
 from .v3_smoke import TASKS, prompt, run_one
@@ -26,7 +26,7 @@ def save(path, value):
 
 def source_hashes():
     """冻结会复制给 Agent 的完整源码与测试集合。"""
-    return {str(p.relative_to(ROOT)): digest(p) for base in ("hexgent", "tests")
+    return {str(p.relative_to(ROOT)): digest(p) for base in ("mindweave_harness", "tests")
             for p in sorted((ROOT / base).rglob("*")) if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc"}
 
 
@@ -84,7 +84,7 @@ def execution_contract(records, turns):
 def project(artifact, directory):
     """投影成本、调用分布、配置与三层 Oracle；完整语义成功始终待审核。"""
     workspace = directory / "workspace"
-    transcript = next((workspace / ".hexgent/sessions").glob("*/transcript.jsonl"))
+    transcript = next((workspace / ".mindweave_harness/sessions").glob("*/transcript.jsonl"))
     records = [json.loads(line) for line in transcript.read_text().splitlines()]
     turns = artifact["turns"]
     main = [t for t in turns if t["request_type"] == "MAIN_AGENT"]
@@ -194,7 +194,7 @@ def main():
     preflight = json.loads(args.preflight.read_text())["result"]
     if preflight["status"] != "PASS" or preflight["model_id"] != get_model():
         raise RuntimeError("PREFLIGHT_NOT_MATCHED")
-    config = replace(HexgentConfig(), loop=LoopLimits(max_model_rounds=16, max_tool_calls=100, max_elapsed_seconds=600))
+    config = replace(MindWeaveHarnessConfig(), loop=LoopLimits(max_model_rounds=16, max_tool_calls=100, max_elapsed_seconds=600))
     manifest = {"model": get_model(), "provider": str(client.base_url), "source_hashes": source_hashes(),
                 "prompts": {name: prompt(task) for name, task in TASKS.items()}, "config": asdict(config),
                 "allowed_tools": ["read_file", "glob"], "permission": "production default; confirmation deny",

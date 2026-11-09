@@ -3,7 +3,7 @@ from copy import deepcopy
 import unittest
 from types import SimpleNamespace
 
-from hexgent.context import ContextManager
+from mindweave_harness.context import ContextManager
 
 
 class RequestLogprobsCompatibilityTests(unittest.TestCase):

@@ -1,6 +1,6 @@
 import unittest
 
-from hexgent.integration.lifecycle import LifecycleProjector
+from mindweave_harness.integration.lifecycle import LifecycleProjector
 
 
 class LifecycleProjectorPhase2Test(unittest.TestCase):

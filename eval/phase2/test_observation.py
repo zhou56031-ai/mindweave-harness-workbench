@@ -4,7 +4,7 @@ import unittest
 
 from eval.phase1.observation import RuntimeObservation
 from eval.phase2.observation import tool_permission_observation
-from hexgent.events import ToolFinishedEvent, ToolStartedEvent
+from mindweave_harness.events import ToolFinishedEvent, ToolStartedEvent
 
 
 class ToolPermissionObservationTest(unittest.TestCase):

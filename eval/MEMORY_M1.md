@@ -4,7 +4,7 @@
 
 AgentEngine.submit → MemoryRetriever(config.memory_retrieval).retrieve → LoopState.relevant_memory
 → build_context_details 去重/预算筛选 → call_model 的最终 memory_injected 凭证。
-现有 MemoryRetrievalLimits.enabled=false 返回空列表，既有 RunOptions/HexgentConfig 可以控制，
+现有 MemoryRetrievalLimits.enabled=false 返回空列表，既有 RunOptions/MindWeaveHarnessConfig 可以控制，
 不需要生产 feature flag。ContextRecord、Compression、工具、模型参数均不随 OFF 改变。
 
 默认 CLI 的 Memory 和旧 Transcript 都位于可读工作区，因此仅关闭 enabled 不足以隔离。
@@ -70,7 +70,7 @@ Provider Token = 全部 MAIN + Auxiliary 请求实测 usage 合计；缺失保�
 ## 运行
 
 ```sh
-cd /Users/hector/dev/hexgent
+cd /Users/hector/dev/mindweave_harness
 export M1_OUTPUT="$PWD/eval/memory_m1/runs/m1-$(date -u +%Y%m%dT%H%M%SZ)"
 .venv/bin/python -m eval.memory_m1 prepare --output-dir "$M1_OUTPUT"
 .venv/bin/python -m eval.memory_m1 smoke --output-dir "$M1_OUTPUT" --execute

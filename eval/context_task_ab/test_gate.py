@@ -11,14 +11,14 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from hexgent.agent_engine import AgentEngine, RunRequest
-from hexgent.context.context_compaction import COMPACTION_INSTRUCTIONS
-from hexgent.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS
-from hexgent.tool.tool_execution import execute_tool_call
+from mindweave_harness.agent_engine import AgentEngine, RunRequest
+from mindweave_harness.context.context_compaction import COMPACTION_INSTRUCTIONS
+from mindweave_harness.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS
+from mindweave_harness.tool.tool_execution import execute_tool_call
 from eval.support.agent_contracts import text_response, tool_call
 from eval.context_management.c1_independent import response, plain
 from .harness import FIXTURE, config, profile, manifest, clone_pair, capture_before_compaction, next_request_tokens, RequestBudget, BudgetStop
-from hexgent.utils.token_estimator import estimate_value_tokens
+from mindweave_harness.utils.token_estimator import estimate_value_tokens
 from .private_oracle.oracle import FACTS, SOURCE_FILES, expected_cost, assess
 from .task import PROMPT
 
@@ -62,7 +62,7 @@ class GateTests(unittest.TestCase):
         return data
 
     def test_source_baseline_and_clone(self):
-        self.assertFalse((FIXTURE/'.hexgent').exists())
+        self.assertFalse((FIXTURE/'.mindweave_harness').exists())
         self.assertEqual(len(list((FIXTURE/'vendors').rglob('*.md'))),20)
         on,off=clone_pair(self.work,self.root/'pair')
         self.assertEqual(manifest(on),manifest(off));self.assertEqual(manifest(on),manifest(FIXTURE))
@@ -85,7 +85,7 @@ class GateTests(unittest.TestCase):
     def test_real_pipeline_permission_boundary(self):
         engine=AgentEngine(self.cfg,self.work);calls=[];denials=[]
         with profile('ON'):
-            for name,args in [('read_file',{'path':'../private_oracle/oracle.py'}),('write_file',{'path':'buyer/brief.md','content':'篡改'}),('read_file',{'path':'.hexgent/secret'}),('bash',{'command':'echo hello'})]:
+            for name,args in [('read_file',{'path':'../private_oracle/oracle.py'}),('write_file',{'path':'buyer/brief.md','content':'篡改'}),('read_file',{'path':'.mindweave_harness/secret'}),('bash',{'command':'echo hello'})]:
                 result=execute_tool_call(name,json.dumps(args),context=engine.tool_context,user_confirmation=lambda *a:'allow',call_id=name,execution_notifier=lambda n:calls.append(n))
                 self.assertNotEqual(result.status,'success')
                 denials.append(dict(tool_name=name,arguments=args,result=plain(result)))

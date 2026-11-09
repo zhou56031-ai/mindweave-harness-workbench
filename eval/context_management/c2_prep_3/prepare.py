@@ -7,8 +7,8 @@ from pathlib import Path
 import json
 
 from eval.context_management.c1_independent import save
-from hexgent.context.context_compaction import COMPACTION_INSTRUCTIONS
-from hexgent.utils.token_estimator import estimate_request_tokens
+from mindweave_harness.context.context_compaction import COMPACTION_INSTRUCTIONS
+from mindweave_harness.utils.token_estimator import estimate_request_tokens
 
 ROOT=Path(__file__).resolve().parent
 OLD=ROOT.parent/'c2_prep'
@@ -130,7 +130,7 @@ def main():
             max_reserved_input_per_call=max(e['max_reserved_input_per_call'] for e in entries),
             max_output_tokens_per_call=max(e['max_output_tokens_per_call'] for e in entries)),
         monetary_cost='MONETARY_COST_NOT_EVALUATED',eval_runner_retries=0,main_provider='FAKE_TERMINAL_ONLY',
-        capacity_evidence=dict(configured_context_window_tokens=128000,configured_source='hexgent/context/context_budget.py',
+        capacity_evidence=dict(configured_context_window_tokens=128000,configured_source='mindweave_harness/context/context_budget.py',
             provider_route_capacity='UNCONFIRMED',confirmed=False,reason='本地配置不是Provider路由容量证明'),
         stops=['TOKEN_OR_CALL_BUDGET_EXHAUSTED','SDK_RETRY_NOT_DISABLED','ATTRIBUTION_MISSING',
             'ARTIFACT_PERSIST_FAILED','CAPACITY_NOT_CONFIRMED','STAGE_2_REQUIRES_HUMAN_APPROVAL'],

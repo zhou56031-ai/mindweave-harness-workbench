@@ -7,7 +7,7 @@ from tests.support.fact_extraction_fixture import extraction_event
 import unittest
 from unittest.mock import patch
 
-from hexgent.events import (
+from mindweave_harness.events import (
     ContextCompactionFinishedEvent,
     ContextCompactionStartedEvent,
     LoopLimitReachedEvent,
@@ -19,32 +19,32 @@ from hexgent.events import (
     ToolFinishedEvent,
     ToolStartedEvent,
 )
-from hexgent.context import ContextLimits, ContextManager
-from hexgent.config import HexgentConfig
-from hexgent.run_control import RunControl
-from hexgent.utils.token_estimator import estimate_request_tokens
-from hexgent.context.context_builder import build_context
-from hexgent.loop.limits import LoopLimits, check_loop_limit
-from hexgent.loop.loop_state import LoopState
-from hexgent.loop.transitions import Continue, Stop
-from hexgent.plan import InMemoryPlanStore, Plan, PlanStep
-from hexgent.session import Session, SessionSettings
-from hexgent.tool.tool_context import (
+from mindweave_harness.context import ContextLimits, ContextManager
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.run_control import RunControl
+from mindweave_harness.utils.token_estimator import estimate_request_tokens
+from mindweave_harness.context.context_builder import build_context
+from mindweave_harness.loop.limits import LoopLimits, check_loop_limit
+from mindweave_harness.loop.loop_state import LoopState
+from mindweave_harness.loop.transitions import Continue, Stop
+from mindweave_harness.plan import InMemoryPlanStore, Plan, PlanStep
+from mindweave_harness.session import Session, SessionSettings
+from mindweave_harness.tool.tool_context import (
     ReadFileCacheEntry,
     ReadFileCacheKey,
     ToolCallCacheEntry,
     ToolExecutionContext,
 )
-from hexgent.tool.tool_result import ToolExecutionResult
-from hexgent.tool.tool_registry import get_tool
-from hexgent.tool.tool_scheduler import ToolBatchResult
-from hexgent.tool.tool_permission_pipeline import PermissionConfig
-from hexgent.prompt import TOOLS
+from mindweave_harness.tool.tool_result import ToolExecutionResult
+from mindweave_harness.tool.tool_registry import get_tool
+from mindweave_harness.tool.tool_scheduler import ToolBatchResult
+from mindweave_harness.tool.tool_permission_pipeline import PermissionConfig
+from mindweave_harness.prompt import TOOLS
 
 
-agent_loop_module = import_module("hexgent.loop.agent_loop")
-turn_module = import_module("hexgent.loop.agent_turn")
-tool_execution_module = import_module("hexgent.tool.tool_execution")
+agent_loop_module = import_module("mindweave_harness.loop.agent_loop")
+turn_module = import_module("mindweave_harness.loop.agent_turn")
+tool_execution_module = import_module("mindweave_harness.tool.tool_execution")
 
 
 class FakeResponses:
@@ -126,9 +126,9 @@ def drain_generator(generator):
 def build_config(
     limits: LoopLimits | None = None,
     context_limits: ContextLimits | None = None,
-) -> HexgentConfig:
-    """从测试覆盖项生成一份完整的 HexgentConfig。"""
-    return HexgentConfig(
+) -> MindWeaveHarnessConfig:
+    """从测试覆盖项生成一份完整的 MindWeaveHarnessConfig。"""
+    return MindWeaveHarnessConfig(
         loop=limits or LoopLimits(),
         context=context_limits or ContextLimits(),
     )
@@ -760,7 +760,7 @@ class AgentLoopLimitsTest(unittest.TestCase):
             _, outcome = drain_generator(
                 turn_module.run_turn(
                     state,
-                    config=HexgentConfig(
+                    config=MindWeaveHarnessConfig(
                         permission=PermissionConfig("accept_edits")
                     ),
                     client=client,

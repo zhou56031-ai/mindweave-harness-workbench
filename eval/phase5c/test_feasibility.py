@@ -8,12 +8,12 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import unittest
 
-from hexgent.agent_engine import AgentEngine
-from hexgent.config import HexgentConfig
-from hexgent.memory import ContextRecordInput
-from hexgent.memory.context_record_extraction import ContextExtractionLimits
-from hexgent.memory.context_retrieval import ContextRetrievalLimits
-from hexgent.memory.memory_prompts import CONTEXT_RECORD_EXTRACTION_INSTRUCTIONS
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.memory import ContextRecordInput
+from mindweave_harness.memory.context_record_extraction import ContextExtractionLimits
+from mindweave_harness.memory.context_retrieval import ContextRetrievalLimits
+from mindweave_harness.memory.memory_prompts import CONTEXT_RECORD_EXTRACTION_INSTRUCTIONS
 
 from eval.phase5c.fixtures import baseline_path, cloned_snapshot, cloned_workspace, freeze_snapshot, workspace_manifest
 from eval.phase5c.artifacts import FeasibilityArtifact, write_artifact
@@ -132,7 +132,7 @@ class Phase5CFeasibilityTest(unittest.TestCase):
         with TemporaryDirectory() as directory:
             workspace = Path(directory) / "workspace"
             workspace.mkdir()
-            engine = AgentEngine.create(HexgentConfig(
+            engine = AgentEngine.create(MindWeaveHarnessConfig(
                 context_extraction=ContextExtractionLimits(enabled=True, turn_interval=1),
             ), workspace)
             client = _StageAExtractionClient()
@@ -154,11 +154,11 @@ class Phase5CFeasibilityTest(unittest.TestCase):
             session_id = engine.session.store.session_id if engine.session.store else None
             self.assertIsNotNone(session_id)
             with cloned_snapshot(snapshot) as on, cloned_snapshot(snapshot) as off:
-                self.assertTrue((on / ".hexgent").exists())
-                on_engine = AgentEngine.restore(HexgentConfig(
+                self.assertTrue((on / ".mindweave_harness").exists())
+                on_engine = AgentEngine.restore(MindWeaveHarnessConfig(
                     context_retrieval=ContextRetrievalLimits(enabled=True),
                 ), on, session_id)
-                off_engine = AgentEngine.restore(HexgentConfig(
+                off_engine = AgentEngine.restore(MindWeaveHarnessConfig(
                     context_retrieval=ContextRetrievalLimits(enabled=False),
                 ), off, session_id)
                 stage_b_prompt = "依据发布策略更新交接文档"
@@ -180,7 +180,7 @@ class Phase5CFeasibilityTest(unittest.TestCase):
     def test_l1_rejects_answer_leaking_or_untraceable_record(self) -> None:
         with TemporaryDirectory() as directory:
             workspace = Path(directory)
-            engine = AgentEngine.create(HexgentConfig(), workspace)
+            engine = AgentEngine.create(MindWeaveHarnessConfig(), workspace)
             query = engine.context_manager.append_user_query("分析发布资料")
             engine.session.record_user_query(query)
             record = engine.session.upsert_context_records([

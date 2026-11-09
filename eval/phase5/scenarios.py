@@ -9,21 +9,21 @@ from types import SimpleNamespace
 from typing import Any, Callable
 
 from eval.support.agent_contracts import FakeToolCall, text_response
-from hexgent.agent_engine import AgentEngine
-from hexgent.config import HexgentConfig, RunOptions
-from hexgent.context import ContextLimits
-from hexgent.context.context_compaction import COMPACTION_INSTRUCTIONS
-from hexgent.memory import (
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.config import MindWeaveHarnessConfig, RunOptions
+from mindweave_harness.context import ContextLimits
+from mindweave_harness.context.context_compaction import COMPACTION_INSTRUCTIONS
+from mindweave_harness.memory import (
     ContextRecordInput,
     ContextRetrievalLimits,
     MemoryRetrievalLimits,
     MemoryStore,
 )
-from hexgent.memory.context_record_extraction import ContextExtractionLimits
-from hexgent.session import Session
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.tool.tool_execution import execute_tool_call
-from hexgent.plan import InMemoryPlanStore
+from mindweave_harness.memory.context_record_extraction import ContextExtractionLimits
+from mindweave_harness.session import Session
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.tool.tool_execution import execute_tool_call
+from mindweave_harness.plan import InMemoryPlanStore
 
 from .observation import VariantObservation, observe_requests, tagged_context_block
 from .report import PairedScenarioResult
@@ -70,10 +70,10 @@ def _base_config(
     context: ContextLimits | None = None,
     context_retrieval: ContextRetrievalLimits | None = None,
     memory_retrieval: MemoryRetrievalLimits | None = None,
-) -> HexgentConfig:
+) -> MindWeaveHarnessConfig:
     """关闭自动提取，保证 Benchmark 只改变被测机制。"""
 
-    return HexgentConfig(
+    return MindWeaveHarnessConfig(
         context=context or ContextLimits(),
         context_extraction=ContextExtractionLimits(enabled=False),
         context_retrieval=context_retrieval or ContextRetrievalLimits(enabled=False),
@@ -95,7 +95,7 @@ def _run_engine(
     return events, engine.session.store.read_transcript()
 
 
-def _seed_long_history(root: Path, config: HexgentConfig) -> AgentEngine:
+def _seed_long_history(root: Path, config: MindWeaveHarnessConfig) -> AgentEngine:
     """构造与 Variant 无关的 durable 长历史与早期关键事实。"""
 
     engine = AgentEngine.create(config, root)
@@ -274,7 +274,7 @@ def _read_trace(*, clear_before_read: bool) -> VariantObservation:
 def _estimate_text(text: str) -> int:
     """避免将固定输出误写入 FakeModel usage，仍使用 Production estimator。"""
 
-    from hexgent.utils.token_estimator import estimate_value_tokens
+    from mindweave_harness.utils.token_estimator import estimate_value_tokens
     return estimate_value_tokens(text)
 
 

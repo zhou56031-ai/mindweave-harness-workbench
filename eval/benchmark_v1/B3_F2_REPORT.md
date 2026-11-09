@@ -4,7 +4,7 @@
 
 **READY_FOR_B4_VALIDATION（离线验收通过）**。本轮完成 Benchmark 内部协议 v2 与证据完整性检查；未运行真实模型、Provider、Docker 或 HexWorkspace API，未开始 B4。此结论表示可以进入受控验证阶段，不表示新版真实 E2E 已通过或 V1 可以冻结。
 
-Hexgent HEAD：`adcf30ddb6958c6ed7e317db3066bdebef67a924`，分支 `main`。已有 B1–F1 未提交内容保留；未提交本轮变更。HexWorkspace 有其他工作产生的未提交修改，本轮未编辑该项目。
+MindWeave Harness HEAD：`adcf30ddb6958c6ed7e317db3066bdebef67a924`，分支 `main`。已有 B1–F1 未提交内容保留；未提交本轮变更。HexWorkspace 有其他工作产生的未提交修改，本轮未编辑该项目。
 
 ## 1. 修复映射与文件
 
@@ -94,11 +94,11 @@ git diff --check
 
 ## 8. 历史保全
 
-修复前后对 `eval/benchmark_v1/runs/` 与 `hexgent/`（排除 __pycache__）所有文件按路径排序，组合路径与各文件 SHA-256：
+修复前后对 `eval/benchmark_v1/runs/` 与 `mindweave_harness/`（排除 __pycache__）所有文件按路径排序，组合路径与各文件 SHA-256：
 
 - 文件数：**8,367**，前后相同。
 - 组合 SHA-256：`783c4fb49a5cb084341afb4ebd821b458b37626eb30924704f28c75f695963cc`，前后相同。
-- `git diff -- hexgent` 无 Production 差异。
+- `git diff -- mindweave_harness` 无 Production 差异。
 - 对原 B2 的 30 次 Trial 与补测 3 次 Trial 的实际 TrialManifest 只读校验：33 个唯一 Trial 均为 `LEGACY_NOT_AUDITABLE_UNDER_V2`。它们没有新版完整性清单，不能冒充 v2 审计通过，也没有被改判为任务失败。
 
 历史 29 PASS / 1 FAIL / 3 INVALID 保持原统计语义；本轮不产生新版真实 Benchmark 分数。未原地修改历史 Manifest、Contract、Oracle、Evidence 或 Usage。

@@ -40,7 +40,7 @@ def write(path, value):
 
 def protected_hashes():
     """保护 Production、已有测试、冻结 fixture/oracle/spec 与配置。"""
-    paths = list((ROOT/"hexgent").rglob("*.py")) + list((ROOT/"tests").rglob("*.py"))
+    paths = list((ROOT/"mindweave_harness").rglob("*.py")) + list((ROOT/"tests").rglob("*.py"))
     paths += list((ROOT/"eval/phase5c/fixtures").rglob("*"))
     paths += [ROOT/"eval/phase5c/specifications.py", ROOT/"eval/phase5c/oracles.py", ROOT/".env"]
     return {str(p.relative_to(ROOT)):sha256(p.read_bytes()).hexdigest() for p in paths if p.is_file() and "__pycache__" not in p.parts}

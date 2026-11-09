@@ -1,0 +1,476 @@
+"""跨模型轮次复用的活动模型上下文。"""
+
+from dataclasses import dataclass, field
+from copy import deepcopy
+from typing import Any
+
+
+@dataclass(frozen=True)
+class UserQuery:
+    """一条内容不可修改、只能追加保存的用户原始请求。"""
+
+    # 当前 Query 在本次会话中的稳定递增序号。
+    sequence: int
+
+    # 用户提交的原始文本，不允许摘要、改写或截断。
+    content: str
+
+    def to_message(self) -> dict[str, str]:
+        """转换为提供给模型的原始 user 消息。"""
+        return {"role": "user", "content": self.content}
+
+
+@dataclass
+class ContextManager:
+    """只保存不可变 Query、轮次边界和可压缩活动上下文。"""
+
+    # 下一次模型调用使用的活动条目，其中 UserQuery 永远不可被压缩。
+    active_messages: list[Any] = field(default_factory=list)
+
+    # 活动消息中完整 API 轮次结束位置组成的排他索引。
+    round_boundaries: list[int] = field(default_factory=list)
+
+    # 当前会话已经成功完成的上下文压缩次数。
+    compaction_count: int = 0
+
+    # 最近连续发生的上下文压缩失败次数。
+    consecutive_compaction_failures: int = 0
+
+    # 当前连续压缩流程已经接受的部分有效压缩次数。
+    partial_compaction_count: int = 0
+
+    # 下一条用户 Query 使用的活动上下文内递增序号。
+    _next_query_sequence: int = field(default=1, repr=False)
+
+    # 身份与消息正文分离，Checkpoint 和 Transcript 重放延续同一序列。
+    message_ids: list[str] = field(default_factory=list)
+    next_message_sequence: int = 1
+    key_fact_snapshot: dict[str, Any] | None = None
+    source_ids_legacy: bool = False
+
+    def __post_init__(self) -> None:
+        self._ensure_message_ids()
+
+    def _ensure_message_ids(self) -> None:
+        if len(self.message_ids) > len(self.active_messages):
+            raise ValueError("CONTEXT_MESSAGE_ID_MISMATCH")
+        while len(self.message_ids) < len(self.active_messages):
+            self.message_ids.append(f"msg-{self.next_message_sequence}")
+            self.next_message_sequence += 1
+
+    def prefix_sources(self, cut_index: int) -> list[dict]:
+        from .key_fact_snapshot import json_value
+        self._ensure_message_ids()
+        if not 0 < cut_index <= len(self.active_messages):
+            raise ValueError("SNAPSHOT_CUTPOINT_INVALID")
+        return [{"message_id": identity, "message": json_value(message)}
+                for identity, message in zip(self.message_ids[:cut_index], self.active_messages[:cut_index])]
+
+    def intent_source_ids(self) -> tuple[str, ...]:
+        """最新 Query 即使落入物理切点，也只能作为只读意图参考。"""
+        self._ensure_message_ids()
+        latest = next((m for m in reversed(self.active_messages) if isinstance(m, UserQuery) or _is_user_message(m)), None)
+        return tuple(identity for identity, message in zip(self.message_ids, self.active_messages) if message is latest)
+
+    @property
+    def latest_query_reference(self) -> str | None:
+        latest = next((m for m in reversed(self.active_messages) if isinstance(m, UserQuery) or _is_user_message(m)), None)
+        return latest.content if isinstance(latest, UserQuery) else latest["content"] if latest is not None else None
+
+    def candidate_compaction(self, cut_index: int, summary: str, snapshot: dict, **metrics) -> dict:
+        """候选在隔离副本构建，不发布给 MAIN。"""
+        candidate = deepcopy(self)
+        return candidate.apply_compaction(cut_index, summary, snapshot=snapshot, **metrics)
+
+    def candidate_pruning(
+        self,
+        cut_index: int,
+        pruned_prefix: list[Any],
+        before_tokens: int,
+        after_tokens: int,
+    ) -> dict[str, Any]:
+        """剪枝候选同样在隔离副本上验证，不发布给 MAIN。"""
+        from .context_prune import describe_pruned
+        candidate = deepcopy(self)
+        records = describe_pruned(pruned_prefix)
+        boundary = {
+            # kind 让 Session 把剪枝事实和摘要事实写入不同 Transcript 事件。
+            "kind": "prune",
+            "cut_index": cut_index,
+            "pruned_prefix": deepcopy(pruned_prefix),
+            "pruned_messages": [record.to_dict() for record in records],
+            "pruned_message_count": len(records),
+            "pruned_original_chars": sum(record.original_chars for record in records),
+            "before_tokens": before_tokens,
+            "after_tokens": after_tokens,
+        }
+        candidate.apply_pruning(boundary)
+        # 1. 前缀等长替换，提交后的边界与消息数量可直接用于恢复校验。
+        boundary["resulting_round_boundaries"] = list(candidate.round_boundaries)
+        boundary["resulting_message_count"] = len(candidate.active_messages)
+        boundary["resulting_message_ids"] = list(candidate.message_ids)
+        return boundary
+
+    def apply_pruning(self, boundary: dict[str, Any]) -> None:
+        """重放一次已经提交的剪枝；只替换前缀，不改变消息身份。"""
+        # 1. 切点和前缀必须与当前活动上下文兼容，拒绝损坏的剪枝事实。
+        cut_index = boundary.get("cut_index")
+        pruned_prefix = boundary.get("pruned_prefix")
+        if (
+            not isinstance(cut_index, int)
+            or isinstance(cut_index, bool)
+            or not 0 < cut_index <= len(self.active_messages)
+        ):
+            raise ValueError("剪枝记录包含无效切点")
+        if not isinstance(pruned_prefix, list) or len(pruned_prefix) != cut_index:
+            raise ValueError("剪枝记录缺少与切点等长的剪枝前缀")
+
+        # 2. 前缀内的不可变 Query 继续以原身份保留，避免降级为普通 user 消息。
+        prefix = list(pruned_prefix)
+        for index in range(cut_index):
+            current = self.active_messages[index]
+            if isinstance(current, UserQuery) and not isinstance(prefix[index], UserQuery):
+                prefix[index] = current
+        self.active_messages[:] = [*prefix, *self.active_messages[cut_index:]]
+
+        # 3. 前缀等长替换，轮次边界只需校正到合法范围后继续沿用。
+        self.round_boundaries[:] = sorted(
+            {
+                boundary_index
+                for boundary_index in self.round_boundaries
+                if 0 < boundary_index <= len(self.active_messages)
+            }
+        )
+        self._ensure_message_ids()
+
+    @classmethod
+    def from_messages(cls, messages: list[Any]) -> "ContextManager":
+        """兼容现有列表调用方，并继续共享其活动消息列表。"""
+        context_manager = cls(active_messages=messages)
+        context_manager._next_query_sequence += sum(
+            1 for message in messages if _is_user_message(message)
+        )
+        return context_manager
+
+    @classmethod
+    def from_checkpoint(cls, snapshot: dict[str, Any]) -> "ContextManager":
+        """从 Checkpoint 快照恢复活动上下文。"""
+        # 1. 恢复带标记的 UserQuery，避免快照把不可变 Query 降级为普通消息。
+        raw_messages = snapshot.get("active_messages")
+        if not isinstance(raw_messages, list):
+            raise ValueError("Checkpoint 缺少活动消息")
+        messages = []
+        for message in raw_messages:
+            if isinstance(message, dict) and message.get("type") == "user_query":
+                messages.append(
+                    UserQuery(message["sequence"], message["content"])
+                )
+            else:
+                messages.append(message)
+
+        # 2. 恢复上下文计数和轮次边界，下一条 Query 序号必须单调延续。
+        manager = cls(
+            active_messages=messages,
+            round_boundaries=list(snapshot.get("round_boundaries", [])),
+            compaction_count=int(snapshot.get("compaction_count", 0)),
+            consecutive_compaction_failures=int(
+                snapshot.get("consecutive_compaction_failures", 0)
+            ),
+            partial_compaction_count=int(snapshot.get("partial_compaction_count", 0)),
+        )
+        manager._next_query_sequence = int(snapshot.get("next_query_sequence", 1))
+        if "message_ids" in snapshot:
+            manager.message_ids = list(snapshot["message_ids"])
+            manager.next_message_sequence = int(snapshot["next_message_sequence"])
+            if len(manager.message_ids) != len(messages) or len(set(manager.message_ids)) != len(messages):
+                raise ValueError("CHECKPOINT_MESSAGE_IDS_INVALID")
+        manager.key_fact_snapshot = deepcopy(snapshot.get("key_fact_snapshot"))
+        manager.source_ids_legacy = bool(snapshot.get("source_ids_legacy", "message_ids" not in snapshot))
+        return manager
+
+
+    @property
+    def user_queries(self) -> tuple[UserQuery, ...]:
+        """返回当前活动上下文中无法原地修改的 Query 快照。"""
+        return tuple(
+            item
+            for item in self.active_messages
+            if isinstance(item, UserQuery)
+        )
+
+    def model_messages(self) -> list[Any]:
+        """把不可变 Query 物化为原始 user 消息后构造模型输入。"""
+        return self.messages_with_snapshot(self.active_messages, self.key_fact_snapshot)
+
+    def messages_with_snapshot(self, messages: list[Any], snapshot: dict | None) -> list[Any]:
+        from .key_fact_snapshot import snapshot_message
+        prefix = [snapshot_message(snapshot)] if snapshot is not None else []
+        return [*prefix, *self.materialize_messages(messages)]
+
+    def materialize_messages(self, messages: list[Any]) -> list[Any]:
+        """将任意活动条目列表中的不可变 Query 转换为模型消息。"""
+        return [
+            _request_message(item.to_message() if isinstance(item, UserQuery) else item)
+            for item in messages
+        ]
+
+    def append_user_query(self, content: str) -> UserQuery:
+        """原样追加一条只属于活动模型上下文的用户 Query。"""
+        query = UserQuery(self._next_query_sequence, content)
+        self._next_query_sequence += 1
+        self.active_messages.append(query)
+        self._ensure_message_ids()
+        self.partial_compaction_count = 0
+        return query
+
+    def restore_user_query(self, sequence: int, content: str) -> UserQuery:
+        """按 Transcript 中的稳定序号恢复一条用户 Query。"""
+        # 1. 恢复协议只接受严格递增的 Query，避免损坏日志产生重复身份。
+        if sequence != self._next_query_sequence:
+            raise ValueError(
+                f"用户 Query 序号不连续：期望 {self._next_query_sequence}，收到 {sequence}"
+            )
+
+        # 2. 恢复与正常追加使用相同的活动消息结构，但不重新分配序号。
+        query = UserQuery(sequence, content)
+        self._next_query_sequence = sequence + 1
+        self.active_messages.append(query)
+        self._ensure_message_ids()
+        self.partial_compaction_count = 0
+        return query
+
+    def append_message(self, message: Any) -> None:
+        """追加普通消息；user 消息自动进入不可变 Query 管线。"""
+        if _is_user_message(message):
+            self.append_user_query(message["content"])
+            return
+        self.active_messages.append(message)
+        self._ensure_message_ids()
+        self.partial_compaction_count = 0
+
+    def append_messages(
+        self,
+        messages: list[Any],
+        *,
+        completes_round: bool = False,
+    ) -> None:
+        """同时追加多条消息，并可标记一个完整 API 轮次结束。"""
+        for message in messages:
+            self.append_message(message)
+        if completes_round:
+            self.mark_round_complete()
+
+    def mark_round_complete(self) -> None:
+        """记录当前活动消息末尾是一个可安全压缩的完整轮次边界。"""
+        boundary = len(self.active_messages)
+        if boundary > 0 and (
+            not self.round_boundaries or self.round_boundaries[-1] != boundary
+        ):
+            self.round_boundaries.append(boundary)
+
+    def build_compacted_messages(
+        self,
+        cut_index: int,
+        summary: str,
+    ) -> tuple[list[Any], list[int], list[UserQuery]]:
+        """构造候选活动上下文，但不立即修改当前会话状态。"""
+        latest_query = next(
+            (
+                item
+                for item in reversed(self.active_messages)
+                if isinstance(item, UserQuery)
+            ),
+            None,
+        )
+        preserved_queries = (
+            [latest_query]
+            if latest_query is not None
+            and latest_query in self.active_messages[:cut_index]
+            else []
+        )
+        summary_message = {
+            "role": "developer",
+            "content": f"以下是此前会话的压缩摘要：\n\n{summary}",
+        }
+        remaining_messages = self.active_messages[cut_index:]
+        prefix_length = len(preserved_queries) + 1
+        remaining_boundaries = [
+            prefix_length + boundary - cut_index
+            for boundary in self.round_boundaries
+            if boundary > cut_index
+        ]
+
+        compacted_messages = [
+            *preserved_queries,
+            summary_message,
+            *remaining_messages,
+        ]
+        compacted_boundaries = [prefix_length, *remaining_boundaries]
+        return compacted_messages, compacted_boundaries, preserved_queries
+
+    def apply_compaction(
+        self,
+        cut_index: int,
+        summary: str,
+        *,
+        before_tokens: int,
+        after_tokens: int,
+        summary_tokens: int,
+        recent_tokens: int,
+        status: str,
+        snapshot: dict | None = None,
+    ) -> dict[str, Any]:
+        """提交已经验证收益的候选压缩，并返回结构化边界事实。"""
+        compacted_messages, compacted_boundaries, preserved_queries = (
+            self.build_compacted_messages(cut_index, summary)
+        )
+        self._ensure_message_ids()
+        sources = self.prefix_sources(cut_index)
+        previous_ids = list(self.message_ids)
+        # 1. 摘要是新生成消息，不复用已压缩原始消息的身份。
+        summary_id = f"summary-{self.compaction_count + 1}"
+        preserved_ids = [previous_ids[self.active_messages.index(query)] for query in preserved_queries]
+        self.message_ids = [*preserved_ids, summary_id, *previous_ids[cut_index:]]
+        self.active_messages[:] = compacted_messages
+        self.round_boundaries[:] = compacted_boundaries
+        boundary_record = {
+            "summary": summary,
+            "compacted_messages": cut_index,
+            "preserved_query_sequences": [query.sequence for query in preserved_queries],
+            "before_tokens": before_tokens,
+            "after_tokens": after_tokens,
+            "summary_tokens": summary_tokens,
+            "recent_tokens": recent_tokens,
+            "status": status,
+        }
+        self.compaction_count += 1
+        self.consecutive_compaction_failures = 0
+        if status == "partial":
+            self.partial_compaction_count += 1
+        else:
+            self.partial_compaction_count = 0
+        # 恢复端直接采用已经提交的结果，不重新推导历史轮次边界。
+        boundary_record["resulting_round_boundaries"] = list(self.round_boundaries)
+        boundary_record["resulting_message_count"] = len(self.active_messages)
+        boundary_record["compaction_count"] = self.compaction_count
+        boundary_record["partial_compaction_count"] = self.partial_compaction_count
+        if snapshot is not None:
+            self.key_fact_snapshot = deepcopy(snapshot)
+            boundary_record.update(key_fact_snapshot=deepcopy(snapshot), source_messages=sources,
+                                   resulting_message_ids=list(self.message_ids),
+                                   next_message_sequence=self.next_message_sequence)
+        return boundary_record
+
+    def restore_compaction(self, record: dict[str, Any]) -> None:
+        """重放一次已经成功提交的上下文压缩。"""
+        # 1. 先按当时的切点和摘要重建候选消息，校验日志没有越界。
+        cut_index = record.get("compacted_messages")
+        summary = record.get("summary")
+        if not isinstance(cut_index, int) or not 0 < cut_index <= len(
+            self.active_messages
+        ):
+            raise ValueError("上下文压缩记录包含无效切点")
+        if not isinstance(summary, str) or not summary.strip():
+            raise ValueError("上下文压缩记录缺少有效摘要")
+        compacted_messages, _, _ = self.build_compacted_messages(
+            cut_index,
+            summary,
+        )
+
+        # 2. 轮次边界属于压缩提交结果，恢复时必须直接采用持久化值。
+        boundaries = record.get("resulting_round_boundaries")
+        if not isinstance(boundaries, list) or not all(
+            isinstance(boundary, int) for boundary in boundaries
+        ):
+            raise ValueError("上下文压缩记录缺少提交后的轮次边界")
+        if boundaries != sorted(set(boundaries)) or any(
+            boundary <= 0 or boundary > len(compacted_messages)
+            for boundary in boundaries
+        ):
+            raise ValueError("上下文压缩记录的轮次边界无效")
+        if record.get("resulting_message_count") != len(compacted_messages):
+            raise ValueError("上下文压缩记录的消息数量与重放结果不一致")
+
+        # 3. 全部校验通过后才发布恢复状态。
+        validated = None
+        if "key_fact_snapshot" in record:
+            # 2.5. 恢复再次验证已提交来源和生命周期，不调用 Extractor。
+            from .key_fact_snapshot import validate_snapshot
+            snapshot = record["key_fact_snapshot"]
+            raw = {k: snapshot[k] for k in ("as_of_message_id", "facts", "dispositions")}
+            sources = self.prefix_sources_from_previous(record, cut_index)
+            actual_sources = self.prefix_sources(cut_index)
+            same_sources = sources == actual_sources
+            if self.source_ids_legacy:
+                # 老快照没有消息身份；逐消息核对正文后采用首次新提交中的权威身份。
+                same_sources = [s["message"] for s in sources] == [s["message"] for s in actual_sources]
+            if not same_sources:
+                raise ValueError("SNAPSHOT_RESTORE_PREFIX_MISMATCH")
+            validated = validate_snapshot(raw, cutpoint=sources[-1]["message_id"], sources=sources,
+                                          previous=self.key_fact_snapshot, budget_tokens=10**12,
+                                          excluded_source_ids=tuple(s["message_id"] for s, identity in
+                                              zip(sources, self.message_ids[:cut_index])
+                                              if identity in self.intent_source_ids()))
+            if validated != snapshot:
+                raise ValueError("SNAPSHOT_RESTORE_SOURCE_MISMATCH")
+            ids = record["resulting_message_ids"]
+            if len(ids) != len(compacted_messages) or len(set(ids)) != len(ids):
+                raise ValueError("SNAPSHOT_RESTORE_IDS_INVALID")
+        self.active_messages[:] = compacted_messages
+        self.round_boundaries[:] = boundaries
+        if validated is not None:
+            self.key_fact_snapshot = deepcopy(validated)
+            self.message_ids = list(record["resulting_message_ids"])
+            self.next_message_sequence = int(record["next_message_sequence"])
+            self.source_ids_legacy = False
+        else:
+            # 旧事件没有 Snapshot，继续保持其原有恢复契约。
+            self.message_ids = [f"legacy-{self.compaction_count}-{i}" for i in range(len(compacted_messages))]
+            self.source_ids_legacy = True
+        self.compaction_count = int(record.get("compaction_count", 0))
+        self.partial_compaction_count = int(
+            record.get("partial_compaction_count", 0)
+        )
+        self.consecutive_compaction_failures = 0
+
+    def prefix_sources_from_previous(self, record: dict, cut_index: int) -> list[dict]:
+        """仅用于重放校验；来源在改动活动消息之前核对。"""
+        sources = record.get("source_messages")
+        if not isinstance(sources, list) or len(sources) != cut_index:
+            raise ValueError("SNAPSHOT_RESTORE_SOURCES_INVALID")
+        return sources
+
+    def record_compaction_failure(self) -> None:
+        """累计一次压缩失败，供后续熔断判断使用。"""
+        self.consecutive_compaction_failures += 1
+
+def _request_message(message: Any, *, response_item: bool = True) -> Any:
+    """规范化请求副本的兼容字段，不改权威历史或事实正文。"""
+    # 1. SDK 输出对象与已恢复的 JSON 消息采用同一请求序列化边界。
+    if callable(getattr(message, "model_dump", None)):
+        message = message.model_dump(mode="json")
+    # 2. reasoning.status 是可省略的响应状态元数据，当前Provider不接受回传。
+    #    只处理顶层响应条目，不删除工具数据、嵌套事实或其他消息的状态。
+    if isinstance(message, dict):
+        return {
+            # 兼容服务可能在output_text中返回null；回填请求要求数组。
+            # 只规范化请求副本，不改Transcript、正文或工具结果字符串。
+            key: [] if value is None and (
+                key == "logprobs" or
+                (message.get("type") == "output_text" and key == "annotations")
+            ) else _request_message(value, response_item=False)
+            for key, value in message.items()
+            if not (response_item and message.get("type") == "reasoning" and key == "status")
+        }
+    if isinstance(message, list):
+        return [_request_message(value, response_item=False) for value in message]
+    return message
+
+
+def _is_user_message(message: Any) -> bool:
+    """判断一条消息是否为包含原始文本的用户 Query。"""
+    return (
+        isinstance(message, dict)
+        and message.get("role") == "user"
+        and isinstance(message.get("content"), str)
+    )

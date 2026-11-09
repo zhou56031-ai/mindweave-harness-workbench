@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 from eval.context_management.c1_independent import save, hashes
 from eval.context_management.c2_prep_3.prepare import ROOT, digest, old_assets
-from hexgent.utils.token_estimator import estimate_request_tokens
+from mindweave_harness.utils.token_estimator import estimate_request_tokens
 
 
 # 人工逐项核对实体、值、单位、条件和生效状态；文本定位仅用于保留证据。

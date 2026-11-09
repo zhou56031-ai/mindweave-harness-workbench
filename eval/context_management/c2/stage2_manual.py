@@ -98,9 +98,9 @@ Handler 进入 1 次|Handler进入次数=1次|SUPPORTED_PARAPHRASE|没有把迟�
 
 
 LONG1='''
-继续逐文件只读审查 Hexgent|0|继续只读审查|SUPPORTED_PARAPHRASE|任务是源码阅读而非执行测试。
+继续逐文件只读审查 MindWeave Harness|0|继续只读审查|SUPPORTED_PARAPHRASE|任务是源码阅读而非执行测试。
 区分源码实现、测试断言与尚未验证行为|0|区分实现、测试断言与尚未验证的行为|SUPPORTED_PARAPHRASE|用户明确三层证据。
-最近已读 hexgent/events.py|28|hexgent/events.py|SUPPORTED_INFERENCE|原摘要输入最后一个read_file及对应output是events.py。
+最近已读 mindweave_harness/events.py|28|mindweave_harness/events.py|SUPPORTED_INFERENCE|原摘要输入最后一个read_file及对应output是events.py。
 只读，不修改或部署|0|继续只读审查|SUPPORTED_PARAPHRASE|只读任务与台账发布待批准限制；不能宣称已发布。
 记录默认参数|0|记录参数默认值|SUPPORTED_EXACT|返回头要求记录参数默认值。
 入口调用方|0|入口调用方|SUPPORTED_EXACT|返回头的阅读要求。
@@ -109,18 +109,18 @@ LONG1='''
 冻结源码仅为阅读证据|0|它是阅读证据，不是本轮执行测试结果|SUPPORTED_PARAPHRASE|不冒充测试执行结果。
 不是执行测试结果|0|不是本轮执行测试结果|SUPPORTED_PARAPHRASE|保留来源限制。
 不是演练部署配置权威|0|不是合成演练部署的配置权威|SUPPORTED_PARAPHRASE|源码默认值不覆盖合成台账。
-已阅读包入口|0|hexgent/__init__.py|SUPPORTED_INFERENCE|存在对应冻结阅读返回，仅合成历史。
-CLI 全部适配文件|4|hexgent/adapters/cli/event_renderer.py|UNCERTAIN|输入列出了多份CLI文件，但没有目录清单证明全部文件；仅按已读列表解释。
-integration/routes.py|9|hexgent/adapters/integration/routes.py|SUPPORTED_INFERENCE|该返回在原摘要输入内。
-Web 适配全部文件|12|hexgent/adapters/web/app.py|UNCERTAIN|同样缺少完整目录枚举，全部是过强范围量词。
-agent_engine.py|20|hexgent/agent_engine.py|SUPPORTED_INFERENCE|对应正文在原输入。
-client.py|21|hexgent/client.py|SUPPORTED_INFERENCE|对应正文在原输入。
-config.py|22|hexgent/config.py|SUPPORTED_INFERENCE|对应正文在原输入。
-context 包|25|hexgent/context/context_builder.py|SUPPORTED_INFERENCE|实际包括__init__/budget/builder/compaction/manager各正文，限定已读文件。
-events.py|28|hexgent/events.py|SUPPORTED_INFERENCE|对应正文在原输入。
+已阅读包入口|0|mindweave_harness/__init__.py|SUPPORTED_INFERENCE|存在对应冻结阅读返回，仅合成历史。
+CLI 全部适配文件|4|mindweave_harness/adapters/cli/event_renderer.py|UNCERTAIN|输入列出了多份CLI文件，但没有目录清单证明全部文件；仅按已读列表解释。
+integration/routes.py|9|mindweave_harness/adapters/integration/routes.py|SUPPORTED_INFERENCE|该返回在原摘要输入内。
+Web 适配全部文件|12|mindweave_harness/adapters/web/app.py|UNCERTAIN|同样缺少完整目录枚举，全部是过强范围量词。
+agent_engine.py|20|mindweave_harness/agent_engine.py|SUPPORTED_INFERENCE|对应正文在原输入。
+client.py|21|mindweave_harness/client.py|SUPPORTED_INFERENCE|对应正文在原输入。
+config.py|22|mindweave_harness/config.py|SUPPORTED_INFERENCE|对应正文在原输入。
+context 包|25|mindweave_harness/context/context_builder.py|SUPPORTED_INFERENCE|实际包括__init__/budget/builder/compaction/manager各正文，限定已读文件。
+events.py|28|mindweave_harness/events.py|SUPPORTED_INFERENCE|对应正文在原输入。
 此前每次仅确认阅读|0|已阅读该工作项|SUPPORTED_INFERENCE|可见历史assistant都是固定阅读确认，不是详细报告。
 尚未形成详细审查报告|0|已阅读该工作项|SUPPORTED_INFERENCE|完整可见历史只有阅读确认，无最终报告。
-未读取测试|0|hexgent/__init__.py|SUPPORTED_INFERENCE|实际所有read路径为hexgent源码，没有tests路径；限可见历史。
+未读取测试|0|mindweave_harness/__init__.py|SUPPORTED_INFERENCE|实际所有read路径为mindweave_harness源码，没有tests路径；限可见历史。
 未执行测试|0|不是本轮执行测试结果|SUPPORTED_PARAPHRASE|头部以及只读call集合无测试执行。
 监听端口 19347|0|当前演练配置监听端口=19347|SUPPORTED_PARAPHRASE|台账实体、值和当前状态一致。
 快照 CONFIG-ELM-2026-R8|10|当前快照编号=CONFIG-ELM-2026-R8|SUPPORTED_PARAPHRASE|快照ID严格相同。
@@ -165,7 +165,7 @@ SSE 非权威|9|非权威 Integration SSE|SUPPORTED_EXACT|源码声明/接口只
 严格 bool/int|22|@_validate_field|SUPPORTED_PARAPHRASE|bool和int分别type精确校验，避免bool作为int。
 正数|22|@_validate_field|SUPPORTED_PARAPHRASE|数值须>0，部分例外字段有专门处理；摘要写部分关联规则。
 部分关联约束|22|@_validate_relationships|SUPPORTED_PARAPHRASE|关联容量、输入、recent等规则在此，不声称全部约束穷尽。
-默认 TOML 不存在直接返回默认配置|22|@load_config|SUPPORTED_PARAPHRASE|config_path None且不存在则HexgentConfig()。
+默认 TOML 不存在直接返回默认配置|22|@load_config|SUPPORTED_PARAPHRASE|config_path None且不存在则MindWeaveHarnessConfig()。
 客户端 load_dotenv(override=True)|21|load_dotenv(override=True)|SUPPORTED_EXACT|两个函数同样override=True。
 WebSettings override=False|19|load_dotenv(override=False)|SUPPORTED_EXACT|Web环境设置不会覆盖显式环境。
 窗口128000|24|context_window_tokens: int = 128_000|SUPPORTED_EXACT|源码默认值，不代表Provider容量。
@@ -216,20 +216,20 @@ TerminalStatus 含 completed/blocked/incomplete/limit_reached/failed/interrupted
 
 
 LONG3='''
-继续只读审查 hexgent 项目源码|0|继续只读审查|SUPPORTED_PARAPHRASE|原始逐文件只读目标。
+继续只读审查 mindweave_harness 项目源码|0|继续只读审查|SUPPORTED_PARAPHRASE|原始逐文件只读目标。
 区分实现、测试断言与尚未验证行为|0|区分实现、测试断言与尚未验证的行为|SUPPORTED_PARAPHRASE|保留三种证据层。
 不修改代码|0|继续只读审查|SUPPORTED_PARAPHRASE|只读任务，不新增写动作。
 不执行测试|0|不是本轮执行测试结果|SUPPORTED_PARAPHRASE|阅读来源不是测试运行。
 不能把断言当作实际通过|0|不是本轮执行测试结果|SUPPORTED_PARAPHRASE|未宣称测试通过。
-已审查至 hexgent/events.py|28|hexgent/events.py|SUPPORTED_INFERENCE|最后摘要input工作项路径。
-入口|0|hexgent/__init__.py|SUPPORTED_INFERENCE|正文在实际摘要input内。
-CLI|4|hexgent/adapters/cli/event_renderer.py|SUPPORTED_INFERENCE|对应已读文件，不声称全部。
-Integration/Web Adapter|9|hexgent/adapters/integration/routes.py|SUPPORTED_INFERENCE|原输入有integration及web多文件；整体列类别非穷尽证明。
-AgentEngine|20|hexgent/agent_engine.py|SUPPORTED_INFERENCE|对应正文在原输入。
-配置|22|hexgent/config.py|SUPPORTED_INFERENCE|对应正文在原输入。
-Context 管线|26|hexgent/context/context_compaction.py|SUPPORTED_INFERENCE|预算/builder/compaction/manager各正文在输入内。
-事件定义|28|hexgent/events.py|SUPPORTED_INFERENCE|对应正文在原输入。
-当前累计工作项至 29|28|hexgent/events.py|SUPPORTED_INFERENCE|摘要input有read:0..28共29组，不当成真实执行29次工具Benchmark。
+已审查至 mindweave_harness/events.py|28|mindweave_harness/events.py|SUPPORTED_INFERENCE|最后摘要input工作项路径。
+入口|0|mindweave_harness/__init__.py|SUPPORTED_INFERENCE|正文在实际摘要input内。
+CLI|4|mindweave_harness/adapters/cli/event_renderer.py|SUPPORTED_INFERENCE|对应已读文件，不声称全部。
+Integration/Web Adapter|9|mindweave_harness/adapters/integration/routes.py|SUPPORTED_INFERENCE|原输入有integration及web多文件；整体列类别非穷尽证明。
+AgentEngine|20|mindweave_harness/agent_engine.py|SUPPORTED_INFERENCE|对应正文在原输入。
+配置|22|mindweave_harness/config.py|SUPPORTED_INFERENCE|对应正文在原输入。
+Context 管线|26|mindweave_harness/context/context_compaction.py|SUPPORTED_INFERENCE|预算/builder/compaction/manager各正文在输入内。
+事件定义|28|mindweave_harness/events.py|SUPPORTED_INFERENCE|对应正文在原输入。
+当前累计工作项至 29|28|mindweave_harness/events.py|SUPPORTED_INFERENCE|摘要input有read:0..28共29组，不当成真实执行29次工具Benchmark。
 CLI/Web 均通过结构化事件|4|@TerminalEventRenderer|SUPPORTED_PARAPHRASE|CLI渲染AgentEvents、Web serializer类型映射，限定架构观察。
 RunControl|5|@main|SUPPORTED_PARAPHRASE|CLI使用RunControl，Web handle同样持有run_control；没有能力成功率结论。
 权限确认|7|@request_confirmation|SUPPORTED_PARAPHRASE|CLI确认入口；Web异步PendingPermission也在原输入。

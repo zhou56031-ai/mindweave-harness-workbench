@@ -14,10 +14,10 @@ from .v2_runner import digest
 class OpenAuditTests(unittest.TestCase):
     def test_production_profile_uses_default_budgets_and_auto_approve(self):
         from dataclasses import asdict
-        from hexgent.config import HexgentConfig
+        from mindweave_harness.config import MindWeaveHarnessConfig
         from .v3_smoke import production_audit_config
         on, off = production_audit_config(True), production_audit_config(False)
-        self.assertEqual(on.loop, HexgentConfig().loop)
+        self.assertEqual(on.loop, MindWeaveHarnessConfig().loop)
         self.assertEqual(on.permission.default_mode, 'auto_approve')
         left, right = asdict(on), asdict(off)
         self.assertTrue(left['tool_parallel'].pop('enabled'))
@@ -91,7 +91,7 @@ class OpenAuditTests(unittest.TestCase):
                 select_attempt(base, resume=True, retry_failed=True)
 
     def test_query_is_exactly_user_contract(self):
-        self.assertEqual(QUERY, '请帮我审计一下 `hexgent/tool` 模块的设计')
+        self.assertEqual(QUERY, '请帮我审计一下 `mindweave_harness/tool` 模块的设计')
 
     def test_freeform_answer_is_not_reported_as_json_oracle_failure_or_pass(self):
         evidence = manual_evidence({}, [], '设计主要分为调度与执行。', Path('/tmp'))

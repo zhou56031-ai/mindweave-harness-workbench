@@ -9,13 +9,13 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest import TestCase
 
-from hexgent.agent_engine import AgentEngine, RunRequest
-from hexgent.config import HexgentConfig
-from hexgent.context.context_compaction import compact_context_if_needed
-from hexgent.events import ToolFinishedEvent
-from hexgent.memory import ContextRecordInput
-from hexgent.run_control import RunControl
-from hexgent.session.checkpoint import CheckpointStore
+from mindweave_harness.agent_engine import AgentEngine, RunRequest
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.context.context_compaction import compact_context_if_needed
+from mindweave_harness.events import ToolFinishedEvent
+from mindweave_harness.memory import ContextRecordInput
+from mindweave_harness.run_control import RunControl
+from mindweave_harness.session.checkpoint import CheckpointStore
 from eval.support.agent_contracts import FakeModel, text_response, tool_call
 
 A = "Vorus-Q9 当前端口为 48317。"
@@ -36,7 +36,7 @@ class ContextRecordResumeTest(TestCase):
         self.temp = TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        base = HexgentConfig()
+        base = MindWeaveHarnessConfig()
         self.config = replace(base, context_extraction=replace(base.context_extraction, enabled=False),
                               context_retrieval=replace(base.context_retrieval, enabled=True),
                               memory_retrieval=replace(base.memory_retrieval, enabled=False))
@@ -181,7 +181,7 @@ class ContextRecordResumeTest(TestCase):
         self.engine.session.record_compaction(outcome.boundary)
         snapshot = self.root / "snapshot"
         snapshot.mkdir()
-        shutil.copytree(self.root / ".hexgent", snapshot / ".hexgent")
+        shutil.copytree(self.root / ".mindweave_harness", snapshot / ".mindweave_harness")
         requests = {}
         for variant in ("ON", "OFF"):
             workdir = self.root / variant

@@ -4,7 +4,7 @@
 
 - 成功 Preflight：`runs/v3-preflight-20261008T130507Z.json`（gpt-6.1-sol、usage_available=true）。
 - Smoke 原报告：`runs/v3-smoke-20261008/report.json`。
-- 首题 ON 原始 Artifact：`runs/v3-smoke-20261008/tool_pipeline/ON/artifact.json`，Provider 请求/响应另存 provider-calls.json，durable Transcript/结果工件保留在 workspace/.hexgent。
+- 首题 ON 原始 Artifact：`runs/v3-smoke-20261008/tool_pipeline/ON/artifact.json`，Provider 请求/响应另存 provider-calls.json，durable Transcript/结果工件保留在 workspace/.mindweave_harness。
 - 只读重投影：`runs/v3-smoke-20261008/audit-corrected.json`。没有覆盖原 Artifact。
 
 只运行 Tool Pipeline ON 一次；Agent terminal=completed。由于 Usage Gate 未通过，Tool OFF、Recovery ON/OFF、Memory ON/OFF、轨迹重放全部 NOT_RUN。没有扩大样本或为追求收益重跑。

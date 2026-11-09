@@ -24,7 +24,7 @@ from .contracts import Identifier
 
 
 BASELINE = Path(__file__).with_name("environment_baseline.json")
-LABEL = "com.hexgent.benchmark"
+LABEL = "com.mindweave_harness.benchmark"
 SERVICES = ("mysql", "redis", "minio", "rabbitmq", "qdrant", "workspace", "runtime")
 STORES = ("mysql", "redis", "minio", "rabbitmq", "qdrant")
 
@@ -200,16 +200,16 @@ class TrialEnvironmentManager:
                 "workspace": {"DB_PASSWORD": values["DB_PASSWORD"], "MINIO_PASSWORD": values["MINIO_PASSWORD"],
                               "MQ_PASSWORD": values["MQ_PASSWORD"], "DASHSCOPE_API_KEY": self.embedding_key,
                               "JWT_SECRET": values["JWT_SECRET"],
-                              "HEXGENT_WORKSPACE_INTEGRATION_TOKEN": values["INTEGRATION_TOKEN"],
-                              "HEXGENT_WORKSPACE_CAPABILITY_TOKEN": values["CAPABILITY_TOKEN"],
-                              "HEXGENT_WORKSPACE_LIFECYCLE_TOKEN": values["CALLBACK_TOKEN"],
+                              "MINDWEAVE_WORKSPACE_INTEGRATION_TOKEN": values["INTEGRATION_TOKEN"],
+                              "MINDWEAVE_WORKSPACE_CAPABILITY_TOKEN": values["CAPABILITY_TOKEN"],
+                              "MINDWEAVE_WORKSPACE_LIFECYCLE_TOKEN": values["CALLBACK_TOKEN"],
                               "EVALUATION_TOKEN": values["EVALUATION_TOKEN"]},
-                "runtime": {"HEXGENT_WORKSPACE_URL": "http://workspace:8098",
-                            "HEXGENT_WORKSPACE_INTEGRATION_TOKEN": values["INTEGRATION_TOKEN"],
-                            "HEXGENT_WORKSPACE_CAPABILITY_TOKEN": values["CAPABILITY_TOKEN"],
-                            "HEXGENT_WORKSPACE_LIFECYCLE_TOKEN": values["CALLBACK_TOKEN"],
-                            "HEXGENT_WORKSPACE_LIFECYCLE_URL": "http://workspace:8098/internal/v1/agent-runs/lifecycle",
-                            "HEXGENT_WORKSPACE_PERMISSION_URL": "http://workspace:8098/internal/v1/agent-runs/permissions"},
+                "runtime": {"MINDWEAVE_WORKSPACE_URL": "http://workspace:8098",
+                            "MINDWEAVE_WORKSPACE_INTEGRATION_TOKEN": values["INTEGRATION_TOKEN"],
+                            "MINDWEAVE_WORKSPACE_CAPABILITY_TOKEN": values["CAPABILITY_TOKEN"],
+                            "MINDWEAVE_WORKSPACE_LIFECYCLE_TOKEN": values["CALLBACK_TOKEN"],
+                            "MINDWEAVE_WORKSPACE_LIFECYCLE_URL": "http://workspace:8098/internal/v1/agent-runs/lifecycle",
+                            "MINDWEAVE_WORKSPACE_PERMISSION_URL": "http://workspace:8098/internal/v1/agent-runs/permissions"},
                 }.items():
             (private / f"{service}.env").write_text("".join(f"{k}={v}\n" for k, v in variables.items()))
             (private / f"{service}.env").chmod(0o600)
@@ -268,7 +268,7 @@ class TrialEnvironmentManager:
                           "ports": ["127.0.0.1::8098"]},
             "runtime": {"image": self.runtime_image, "env_file": [str(private / "runtime.env")],
                         "volumes": [f"{private}/workdir:/workdir"], "ports": ["127.0.0.1::8000"],
-                        "command": ["python", "-m", "hexgent.adapters.web", "--host", "0.0.0.0",
+                        "command": ["python", "-m", "mindweave_harness.adapters.web", "--host", "0.0.0.0",
                                     "--port", "8000", "--workdir", "/workdir"]},
         }
         for service in services.values():
@@ -446,8 +446,8 @@ class TrialEnvironmentManager:
                      "Trial MinIO: signed GET + content checksum", "Trial Qdrant: exact generation point count",
                      "Trial RabbitMQ: management queue message count"],
             local_state_paths={"workdir": str(environment.workdir),
-                               "memory": str(environment.workdir / ".hexgent/memory"),
-                               "sessions": str(environment.workdir / ".hexgent/sessions")})
+                               "memory": str(environment.workdir / ".mindweave_harness/memory"),
+                               "sessions": str(environment.workdir / ".mindweave_harness/sessions")})
         dump(environment.artifact_root / "observations/business-state.json", observation)
         self._event(environment, "observe", "PASS")
         return observation
@@ -523,7 +523,7 @@ class TrialEnvironmentManager:
              "status": item["State"]["Status"], "exit_code": item["State"]["ExitCode"],
              "health": item["State"].get("Health", {}).get("Status")}
             for item in resources["container"]]})
-        sessions = environment.workdir / ".hexgent/sessions"
+        sessions = environment.workdir / ".mindweave_harness/sessions"
         if sessions.is_dir():
             for source in sessions.iterdir():
                 if source.is_dir() and not source.is_symlink():
@@ -591,7 +591,7 @@ minio:
 hexworkspace:
   jwt:
     secret: ${JWT_SECRET}
-  hexgent:
+  mindweave_harness:
     runtime-url: http://runtime:8000
   rag-evaluation:
     token: ${EVALUATION_TOKEN}

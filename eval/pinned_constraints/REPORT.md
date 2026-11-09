@@ -9,7 +9,7 @@
 - 汇总：`runs/gate-final/report.json`。
 - 每场景 `constraints.json` 保留来源序号、原文、active/superseded 和替代关系。
 - 每侧 `evidence.json` 保存原始请求、包装后请求、实际 FakeModel 请求、Token 估算、预算拒绝原因、Transcript delta、工具结果、终态和恢复前状态。
-- `stage-a/.hexgent/sessions/` 和克隆工作区保留未改写的 Production Transcript/Checkpoint。
+- `stage-a/.mindweave_harness/sessions/` 和克隆工作区保留未改写的 Production Transcript/Checkpoint。
 - `comparison.json` 保存完整请求隔离结果。仅归一化克隆工作区路径；不忽略工具参数、调用 ID、历史或模型参数。
 
 约束 A：禁止修改原始资料，仅允许读取并回复。

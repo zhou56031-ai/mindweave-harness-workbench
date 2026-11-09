@@ -13,7 +13,7 @@ def main():
     source = run / "tool_pipeline" / "ON"
     artifact = json.loads((source / "artifact.json").read_text())
     workspace = source / "workspace"
-    transcript = next((workspace / ".hexgent" / "sessions").glob("*/transcript.jsonl"))
+    transcript = next((workspace / ".mindweave_harness" / "sessions").glob("*/transcript.jsonl"))
     records = [json.loads(line) for line in transcript.read_text().splitlines()]
     turns = artifact["turns"]
     main_turns = [t for t in turns if not str(t["request"].get("instructions", "")).startswith("你负责从给定的会话事实中提取可复用记录")]

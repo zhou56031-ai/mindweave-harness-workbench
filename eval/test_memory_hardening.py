@@ -14,14 +14,14 @@ from unittest.mock import patch
 
 from eval.memory_hardening import CASES, _session, analyze, analyze_all, evaluate, prepare
 from eval.support.agent_contracts import FakeModel, text_response, tool_call
-from hexgent.agent_engine import AgentEngine, RunRequest
-from hexgent.config import load_config
-from hexgent.context.context_builder import build_context_details
-from hexgent.loop.call_model import call_model
-from hexgent.memory import RetrievedMemory, RetrievedContextRecord
-from hexgent.observation import RunObservation, current_observation
-from hexgent.plan import InMemoryPlanStore
-from hexgent.tool.tool_context import ToolExecutionContext
+from mindweave_harness.agent_engine import AgentEngine, RunRequest
+from mindweave_harness.config import load_config
+from mindweave_harness.context.context_builder import build_context_details
+from mindweave_harness.loop.call_model import call_model
+from mindweave_harness.memory import RetrievedMemory, RetrievedContextRecord
+from mindweave_harness.observation import RunObservation, current_observation
+from mindweave_harness.plan import InMemoryPlanStore
+from mindweave_harness.tool.tool_context import ToolExecutionContext
 
 
 class MemoryReceiptTests(unittest.TestCase):
@@ -141,7 +141,7 @@ class MemoryOracleTests(unittest.TestCase):
             for case in manifest["cases"].values():
                 workspace = Path(case["workspace"])
                 self.assertTrue((workspace / "pyproject.toml").is_file())
-                self.assertFalse((workspace / ".hexgent").exists())
+                self.assertFalse((workspace / ".mindweave_harness").exists())
                 self.assertFalse((workspace / "manifest.json").exists())
             with self.assertRaises(ValueError):
                 prepare(output)
@@ -159,8 +159,8 @@ class MemoryOracleTests(unittest.TestCase):
                 prepare(output)
             manifest = json.loads((output / "manifest.json").read_text())
             self.addCleanup(shutil.rmtree, Path(manifest["workspace_root"]))
-            loop = import_module("hexgent.loop.agent_loop")
-            turn = import_module("hexgent.loop.agent_turn")
+            loop = import_module("mindweave_harness.loop.agent_loop")
+            turn = import_module("mindweave_harness.loop.agent_turn")
             for name, case in manifest["cases"].items():
                 workspace = Path(case["workspace"])
                 config = load_config(workspace)

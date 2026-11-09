@@ -1,0 +1,475 @@
+"""将较早的完整模型轮次压缩为连续性摘要。"""
+
+from collections.abc import Generator
+from dataclasses import dataclass, field
+import re
+from time import monotonic
+from typing import Any, Literal
+
+from mindweave_harness.events import (
+    AgentEvent,
+    ContextCompactionFailedEvent,
+    ContextCompactionFinishedEvent,
+    ContextCompactionStartedEvent,
+)
+
+from mindweave_harness.utils.token_estimator import estimate_request_tokens, estimate_value_tokens
+from mindweave_harness.observation import begin_span, end_span
+from .context_budget import ContextLimits
+from .context_manager import ContextManager
+from .context_prune import prune_messages
+from .key_fact_extractor import extract_snapshot, usage_dict
+
+
+class CompactionPublicationError(RuntimeError):
+    """已提交事件的投影失败；必须停止并 Restore，不得声称回滚。"""
+
+
+COMPACTION_INSTRUCTIONS = """你负责压缩 Agent 的历史会话上下文。
+CRITICAL：只输出文本，不得调用任何工具，不得生成新的工具调用或最终用户答复。
+请先在内部分析历史，再只输出一个 <summary>...</summary> 区块。摘要必须简短并严格使用以下结构：
+<summary>
+当前目标：
+用户约束：
+已完成：
+重要发现：
+当前状态：
+剩余工作：
+错误与恢复：
+</summary>
+只保留继续执行所必需的事实。不要复制完整工具输出、工具协议、文件全文、旧最终报告或过期 Plan 快照。
+不要把摘要生成描述成任务中断、执行权限受限或 Agent 无法继续；摘要完成后主 Agent 会自动恢复原任务。
+REMINDER：只允许输出 <summary>...</summary> 文本，不得调用工具。"""
+
+CompactionStatus = Literal[
+    "not_needed",  # 当前上下文未达到主动压缩阈值，无需处理。
+    "pruned",  # 仅剪枝就已回落到主动阈值以下，本次没有调用任何模型。
+    "compacted",  # 压缩有效，且活动上下文已经回落到主动阈值以下。
+    "partial",  # 压缩有效，但活动上下文仍高于主动阈值，允许有限次数续压缩。
+    "failed",  # 本次压缩失败，但上下文尚未达到必须停止运行的硬阈值。
+    "blocked",  # 上下文达到硬阈值且无法安全压缩，必须阻止后续模型调用。
+]
+
+
+@dataclass(frozen=True)
+class CompactionOutcome:
+    """一次主动压缩检查产生的结构化结果。"""
+
+    # 本次检查最终产生的压缩状态。
+    status: CompactionStatus
+
+    # 检查或压缩前估算的完整请求 Token 数量。
+    before_tokens: int
+
+    # 压缩完成后估算的完整请求 Token 数量。
+    after_tokens: int
+
+    # 压缩模型调用消耗的输入 Token 数量。
+    input_tokens: int = 0
+
+    # 压缩模型调用消耗的输出 Token 数量。
+    output_tokens: int = 0
+
+    # 压缩失败或无法安全继续时的中文原因。
+    message: str | None = None
+
+    # 压缩成功提交后应由 Session 持久化的边界事实。
+    boundary: dict[str, Any] | None = None
+
+    # 压缩检查时完整请求的分项 Token 估算，供运行时诊断使用。
+    request_budget: dict[str, int] = field(default_factory=dict)
+
+    # 实际成本与未知 Usage 单独保留，不用估算填补。
+    cost_ledger: dict[str, Any] = field(default_factory=dict)
+
+
+def _usage_values(usage: Any) -> tuple[int, int]:
+    """兼容对象和字典形式的模型 Token 用量。"""
+    if usage is None:
+        return 0, 0
+    if isinstance(usage, dict):
+        return usage.get("input_tokens", 0) or 0, usage.get("output_tokens", 0) or 0
+    return (
+        getattr(usage, "input_tokens", 0) or 0,
+        getattr(usage, "output_tokens", 0) or 0,
+    )
+
+
+def _select_cut_index(
+    context_manager: ContextManager,
+    recent_context_tokens: int,
+) -> int | None:
+    """选择保留近期内容且位于完整 API 轮次之后的压缩切点。"""
+    eligible_boundaries = [
+        boundary
+        for boundary in context_manager.round_boundaries
+        if 0 < boundary <= len(context_manager.active_messages)
+    ]
+    for boundary in eligible_boundaries:
+        recent_messages = context_manager.materialize_messages(
+            context_manager.active_messages[boundary:]
+        )
+        if estimate_value_tokens(recent_messages) <= recent_context_tokens:
+            return boundary
+    return eligible_boundaries[-1] if eligible_boundaries else None
+
+
+def _extract_summary(output_text: str) -> str | None:
+    """只接受唯一且非空的结构化 summary 区块。"""
+    matches = re.findall(
+        r"<summary>\s*(.*?)\s*</summary>",
+        output_text,
+        flags=re.DOTALL,
+    )
+    if len(matches) != 1:
+        return None
+    summary = matches[0].strip()
+    return summary or None
+
+
+def _has_meaningful_savings(
+    before_tokens: int,
+    after_tokens: int,
+    limits: ContextLimits,
+) -> bool:
+    """判断候选摘要是否产生足够的绝对或相对收益。"""
+    savings = before_tokens - after_tokens
+    if savings <= 0:
+        return False
+    savings_ratio = savings / before_tokens
+    return (
+        savings >= limits.min_compaction_savings_tokens
+        or savings_ratio >= limits.min_compaction_savings_ratio
+    )
+
+
+def _read_completed_response(stream: Any, *, deadline: float | None = None) -> Any:
+    """消费内部摘要流，并只返回协议完整的 Response。"""
+    completed_response = None
+    try:
+        for event in stream:
+            if deadline is not None and monotonic() > deadline:
+                raise TimeoutError("FACT_EXTRACTION_TIMEOUT")
+            if event.type == "response.completed":
+                completed_response = event.response
+            elif event.type in {"response.failed", "response.incomplete", "error"}:
+                raise RuntimeError("上下文摘要模型没有返回完整结果")
+    finally:
+        close = getattr(stream, "close", None)
+        if callable(close):
+            close()
+    if completed_response is None:
+        raise RuntimeError("上下文摘要模型没有返回 response.completed 事件")
+    return completed_response
+
+
+def compact_context_if_needed(
+    context_manager: ContextManager,
+    client: Any,
+    model: str,
+    instructions: str,
+    tools: list[dict[str, Any]],
+    limits: ContextLimits,
+    *,
+    force: bool = False,
+    instruction_budget: dict[str, int] | None = None,
+    commit_boundary: Any = None,
+    plan_reference: Any = None,
+    output_allowance: int | None = None,
+    artifact_lookup: dict[str, str] | None = None,
+) -> Generator[AgentEvent, None, CompactionOutcome]:
+    """在主模型调用前检查容量，并在需要时压缩较早的完整轮次。"""
+    # 1. 估算包含运行时指令和工具定义的完整请求大小。
+    before_tokens = estimate_request_tokens(
+        instructions,
+        context_manager.model_messages(),
+        tools,
+    )
+    request_budget = {
+        **(instruction_budget or {"instructions_total": estimate_value_tokens(instructions)}),
+        "active_messages": estimate_value_tokens(context_manager.model_messages()),
+        "tool_schemas": estimate_value_tokens(tools),
+        "request_total": before_tokens,
+    }
+    if not force and before_tokens < limits.compaction_threshold_tokens:
+        return CompactionOutcome(
+            "not_needed", before_tokens, before_tokens,
+            request_budget=request_budget,
+        )
+
+    # 2. 连续失败达到上限时停止重复调用摘要模型。
+    if (
+        context_manager.consecutive_compaction_failures
+        >= limits.max_compaction_attempts
+    ):
+        message = "上下文压缩已连续失败，已停止重复尝试"
+        yield ContextCompactionFailedEvent(message)
+        status: CompactionStatus = (
+            "blocked"
+            if before_tokens >= limits.blocking_threshold_tokens
+            else "failed"
+        )
+        return CompactionOutcome(
+            status, before_tokens, before_tokens, message=message,
+            request_budget=request_budget,
+        )
+
+    # 3. 只在完整 API 轮次边界上选择压缩范围。
+    cut_index = _select_cut_index(context_manager, limits.recent_context_tokens)
+    if cut_index is None:
+        message = "当前上下文没有可安全压缩的完整模型轮次"
+        yield ContextCompactionFailedEvent(message)
+        status = (
+            "blocked"
+            if before_tokens >= limits.blocking_threshold_tokens
+            else "failed"
+        )
+        return CompactionOutcome(
+            status, before_tokens, before_tokens, message=message,
+            request_budget=request_budget,
+        )
+
+    yield ContextCompactionStartedEvent(before_tokens)
+
+    # 4. 剪枝优先：先把可再生的历史工具结果替换为指针，够用就不调用任何模型。
+    #    摘要沿用剪枝后的前缀以降低摘要输入；提取仍读权威前缀，保证快照来源哈希
+    #    与 apply_compaction 记录的 source_messages 一致，恢复端才能复核。
+    summary_prefix = context_manager.materialize_messages(
+        context_manager.active_messages[:cut_index]
+    )
+    if limits.prune_enabled and commit_boundary is not None:
+        pruned_prefix, pruned_records = prune_messages(
+            summary_prefix,
+            preview_chars=limits.prune_preview_chars,
+            min_output_chars=limits.prune_min_output_chars,
+            artifact_lookup=artifact_lookup,
+        )
+        if pruned_records:
+            pruned_after_tokens = estimate_request_tokens(
+                instructions,
+                [*pruned_prefix, *context_manager.active_messages[cut_index:]],
+                tools,
+            )
+            savings = before_tokens - pruned_after_tokens
+            if (
+                pruned_after_tokens < limits.compaction_threshold_tokens
+                and savings >= limits.min_compaction_savings_tokens
+            ):
+                # 4.1. 剪枝已足够：提交确定性边界并直接返回，不请求提取或摘要模型。
+                boundary = context_manager.candidate_pruning(
+                    cut_index,
+                    pruned_prefix,
+                    before_tokens,
+                    pruned_after_tokens,
+                )
+                boundary["request_budget"] = request_budget
+                boundary["cost_ledger"] = {
+                    "model_calls": 0,
+                    "pruned_messages": boundary["pruned_message_count"],
+                    "saved_tokens": savings,
+                }
+                try:
+                    publication_metrics = commit_boundary(boundary)
+                except Exception as error:
+                    context_manager.record_compaction_failure()
+                    message = f"Pruning 提交前失败：{error}"
+                    yield ContextCompactionFailedEvent(message)
+                    return CompactionOutcome(
+                        "blocked"
+                        if before_tokens >= limits.blocking_threshold_tokens
+                        else "failed",
+                        before_tokens,
+                        before_tokens,
+                        message=message,
+                        request_budget=request_budget,
+                    )
+                try:
+                    context_manager.apply_pruning(boundary)
+                except Exception as error:
+                    raise CompactionPublicationError(
+                        "PRUNING_COMMITTED_RESTORE_REQUIRED：内存投影发布失败"
+                    ) from error
+                if publication_metrics:
+                    boundary["publication_metrics"] = publication_metrics
+                yield ContextCompactionFinishedEvent(
+                    before_tokens, pruned_after_tokens, "pruned"
+                )
+                return CompactionOutcome(
+                    "pruned",
+                    before_tokens,
+                    pruned_after_tokens,
+                    boundary=boundary,
+                    request_budget=request_budget,
+                    cost_ledger=boundary["cost_ledger"],
+                )
+            # 4.2. 剪枝不够：仅用更短的摘要前缀继续原有提取与摘要流程。
+            summary_prefix = pruned_prefix
+
+    # 5. 最多进行有限次结构化摘要尝试，失败或无收益时使用更严格提醒重试。
+    total_input_tokens = 0
+    total_output_tokens = 0
+    failure_reason = "上下文摘要没有产生有效压缩"
+    recent_messages = context_manager.materialize_messages(
+        context_manager.active_messages[cut_index:]
+    )
+    recent_tokens = estimate_value_tokens(recent_messages)
+    # 5.1. 一次独立提取；任何提取/来源/预算失败都不能回退旧摘要路径。
+    try:
+        snapshot, extraction_ledger = extract_snapshot(client, model, context_manager,
+                                                       cut_index, limits, plan_reference)
+    except Exception as error:
+        context_manager.record_compaction_failure()
+        message = f"关键事实提取失败：{error}"
+        yield ContextCompactionFailedEvent(message)
+        return CompactionOutcome("blocked" if before_tokens >= limits.blocking_threshold_tokens else "failed",
+                                 before_tokens, before_tokens, message=message, request_budget=request_budget,
+                                 cost_ledger={"extractor": getattr(error, "ledger", {"status": "NOT_DISPATCHED", "failure_reason": str(error)})})
+    total_input_tokens += extraction_ledger["input_tokens"] or 0
+    total_output_tokens += extraction_ledger["output_tokens"] or 0
+    summary_ledger = []
+    for attempt in range(1, limits.max_compaction_attempts + 1):
+        retry_instruction = (
+            ""
+            if attempt == 1
+            else "\n上一次摘要格式或压缩收益不合格。必须显著缩短内容，并严格只输出 summary 区块。"
+        )
+        observed = begin_span("provider", request_type="COMPACTION", model=model, attempt=attempt)
+        started = monotonic()
+        try:
+            estimated_summary_input = estimate_request_tokens(
+                COMPACTION_INSTRUCTIONS + retry_instruction, summary_prefix, [])
+            if estimated_summary_input + limits.summary_output_tokens + limits.safety_margin_tokens > limits.auxiliary_context_window_tokens:
+                raise ValueError("SUMMARY_CONTEXT_BUDGET_EXCEEDED")
+            options = getattr(client, "with_options", None)
+            summary_client = options(max_retries=0) if callable(options) else client
+            stream = summary_client.responses.create(
+                model=model,
+                instructions=COMPACTION_INSTRUCTIONS + retry_instruction,
+                input=summary_prefix,
+                max_output_tokens=limits.summary_output_tokens,
+                stream=True,
+            )
+            response = _read_completed_response(stream)
+        except Exception as error:
+            end_span(observed, status="FAILED", failure_reason=type(error).__name__)
+            summary_ledger.append(dict(attempt=attempt, input_tokens=None, output_tokens=None,
+                                       candidate_status="PROVIDER_FAILED", latency_ms=(monotonic()-started)*1000,
+                                       failure_reason=str(error)))
+            failure_reason = f"摘要模型调用失败：{error}"
+            continue
+
+        end_span(observed, status="SUCCEEDED", response=response)
+
+        response_input_tokens, response_output_tokens = _usage_values(
+            getattr(response, "usage", None)
+        )
+        total_input_tokens += response_input_tokens
+        total_output_tokens += response_output_tokens
+        values = usage_dict(response)
+        summary_ledger.append(dict(attempt=attempt, input_tokens=values.get("input_tokens"),
+                                   output_tokens=values.get("output_tokens"), candidate_status="REJECTED",
+                                   latency_ms=(monotonic()-started)*1000,
+                                   estimated_input_tokens=estimated_summary_input))
+        summary = _extract_summary(response.output_text)
+        if summary is None:
+            failure_reason = "摘要模型没有返回唯一且非空的 <summary> 区块"
+            continue
+
+        summary_tokens = estimate_value_tokens(summary)
+        if summary_tokens > limits.summary_output_tokens:
+            failure_reason = "摘要内容超过配置的摘要 Token 预算"
+            continue
+
+        candidate_messages, _, _ = context_manager.build_compacted_messages(
+            cut_index,
+            summary,
+        )
+        after_tokens = estimate_request_tokens(
+            instructions,
+            context_manager.messages_with_snapshot(candidate_messages, snapshot),
+            tools,
+        )
+        if not _has_meaningful_savings(before_tokens, after_tokens, limits):
+            failure_reason = (
+                f"压缩收益不足：约 {before_tokens:,} → {after_tokens:,} Token"
+            )
+            continue
+
+        status = (
+            "compacted"
+            if after_tokens < limits.compaction_threshold_tokens
+            else "partial"
+        )
+        if after_tokens + (limits.reserved_output_tokens if output_allowance is None else output_allowance) + limits.safety_margin_tokens > limits.context_window_tokens:
+            failure_reason = "CONTEXT_BUDGET_EXCEEDED：Snapshot 与摘要无法共同容纳"
+            continue
+        if (
+            status == "partial"
+            and context_manager.partial_compaction_count
+            >= limits.max_partial_compactions
+        ):
+            failure_reason = "上下文仍超过主动阈值，且部分压缩次数已达到上限"
+            continue
+
+        # 6. 候选副本 → 单事件权威提交 → 内存投影发布，不能反序。
+        boundary = context_manager.candidate_compaction(
+            cut_index,
+            summary,
+            snapshot,
+            before_tokens=before_tokens,
+            after_tokens=after_tokens,
+            summary_tokens=summary_tokens,
+            recent_tokens=recent_tokens,
+            status=status,
+        )
+        boundary["request_budget"] = request_budget
+        summary_ledger[-1]["candidate_status"] = "ACCEPTED"
+        boundary["cost_ledger"] = dict(extractor=extraction_ledger, summary=summary_ledger,
+                                      amortized_benefit="AMORTIZED_BENEFIT_NOT_EVALUATED")
+        try:
+            publication_metrics = commit_boundary(boundary) if commit_boundary is not None else None
+        except Exception as error:
+            context_manager.record_compaction_failure()
+            message = f"Compaction 提交前失败：{error}"
+            yield ContextCompactionFailedEvent(message)
+            return CompactionOutcome("blocked", before_tokens, before_tokens, total_input_tokens,
+                                     total_output_tokens, message, request_budget=request_budget,
+                                     cost_ledger=boundary["cost_ledger"])
+        try:
+            context_manager.restore_compaction(boundary)
+        except Exception as error:
+            raise CompactionPublicationError("COMPACTION_COMMITTED_RESTORE_REQUIRED：内存投影发布失败") from error
+        if publication_metrics:
+            boundary["publication_metrics"] = publication_metrics
+        yield ContextCompactionFinishedEvent(before_tokens, after_tokens, status)
+        return CompactionOutcome(
+            status,
+            before_tokens,
+            after_tokens,
+            total_input_tokens,
+            total_output_tokens,
+            boundary=boundary,
+            request_budget=request_budget,
+            cost_ledger=boundary["cost_ledger"],
+        )
+
+    # 7. 所有尝试均无效时累计熔断计数，硬阈值以上明确阻塞。
+    context_manager.record_compaction_failure()
+    message = f"上下文压缩失败：{failure_reason}"
+    yield ContextCompactionFailedEvent(message)
+    status = (
+        "blocked"
+        if before_tokens >= limits.blocking_threshold_tokens
+        else "failed"
+    )
+    return CompactionOutcome(
+        status,
+        before_tokens,
+        before_tokens,
+        total_input_tokens,
+        total_output_tokens,
+        message,
+        request_budget=request_budget,
+        cost_ledger=dict(extractor=extraction_ledger, summary=summary_ledger,
+                         amortized_benefit="AMORTIZED_BENEFIT_NOT_EVALUATED"),
+    )

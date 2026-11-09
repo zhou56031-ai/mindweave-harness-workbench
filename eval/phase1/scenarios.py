@@ -5,16 +5,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
-from hexgent.config import HexgentConfig
-from hexgent.loop.limits import LoopLimits
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.loop.limits import LoopLimits
 
 from eval.phase1.observation import RuntimeObservation, observation_from_session
 from eval.support.agent_contracts import run_trace, text_response
 from eval.support.agent_contracts import FakeModel
-from hexgent.agent_engine import AgentEngine, RunRequest
-from hexgent.run_control import RunControl
+from mindweave_harness.agent_engine import AgentEngine, RunRequest
+from mindweave_harness.run_control import RunControl
 from types import SimpleNamespace
-from hexgent.session import Session
+from mindweave_harness.session import Session
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
@@ -73,7 +73,7 @@ def limit_reached() -> RuntimeScenario:
     def execute() -> RuntimeObservation:
         trace, _ = run_trace(
             [text_response("预算收尾")],
-            config=HexgentConfig(loop=LoopLimits(max_model_rounds=0)),
+            config=MindWeaveHarnessConfig(loop=LoopLimits(max_model_rounds=0)),
         )
         return RuntimeObservation.collect(trace.events)
 
@@ -111,7 +111,7 @@ def continue_after_pause() -> RuntimeScenario:
     def execute() -> RuntimeObservation:
         with TemporaryDirectory() as directory:
             root = Path(directory)
-            engine = AgentEngine.create(HexgentConfig(), root)
+            engine = AgentEngine.create(MindWeaveHarnessConfig(), root)
             pause_control = RunControl()
             pause_control.pause()
             first_client = SimpleNamespace(responses=FakeModel([text_response("不会执行")]))
@@ -136,13 +136,13 @@ def duplicate_command() -> RuntimeScenario:
     """重复提交同一无效命令时复用第一次 Decision，不产生新效果。"""
     def execute() -> RuntimeObservation:
         import asyncio
-        from hexgent.adapters.web.run_manager import RunManager
-        from hexgent.integration.protocol import RuntimeCommand
-        from hexgent.integration.runtime_adapter import RuntimeCommandAdapter
+        from mindweave_harness.adapters.web.run_manager import RunManager
+        from mindweave_harness.integration.protocol import RuntimeCommand
+        from mindweave_harness.integration.runtime_adapter import RuntimeCommandAdapter
 
         async def run() -> RuntimeObservation:
             with TemporaryDirectory() as directory:
-                manager = RunManager(HexgentConfig(), Path(directory))
+                manager = RunManager(MindWeaveHarnessConfig(), Path(directory))
                 adapter = RuntimeCommandAdapter(manager)
                 command = RuntimeCommand("duplicate-1", "StartRun", "R1", "C1", "now", {})
                 first = await adapter.handle(command)

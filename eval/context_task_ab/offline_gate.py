@@ -12,7 +12,7 @@ import unittest
 from . import test_gate
 from .harness import FIXTURE, manifest, config
 from .task import CONTRACT
-from hexgent.utils.token_estimator import estimate_value_tokens
+from mindweave_harness.utils.token_estimator import estimate_value_tokens
 
 ROOT=Path(__file__).resolve().parents[2]
 
@@ -23,7 +23,7 @@ def main():
     p=argparse.ArgumentParser();p.add_argument('--output-dir',type=Path);p.add_argument('--regression',action='store_true')
     args=p.parse_args();target=args.output_dir or Path(__file__).parent/'runs'/('p0-'+datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ'))
     target.mkdir(parents=True,exist_ok=False)
-    before=manifest(ROOT/'hexgent');sources=[]
+    before=manifest(ROOT/'mindweave_harness');sources=[]
     for path in sorted(FIXTURE.rglob('*.md')):
         text=path.read_text();sources.append(dict(path=str(path.relative_to(FIXTURE)),bytes=path.stat().st_size,
             characters=len(text),estimated_source_tokens=estimate_value_tokens(text),
@@ -43,7 +43,7 @@ def main():
             regressions.append(dict(suite=label,exit_code=proc.returncode,log=label+'.txt',
                 status='PASS' if proc.returncode==0 else 'FAIL',not_reclassified_as_pass=True))
     save(target/'regression.json',regressions)
-    after=manifest(ROOT/'hexgent');production_unchanged=before==after
+    after=manifest(ROOT/'mindweave_harness');production_unchanged=before==after
     estimated=sum(s['estimated_source_tokens'] for s in sources)
     frozen=dict(task=CONTRACT,fixture_hashes=manifest(FIXTURE),production_hashes=before,
         eval_hashes={k:v for k,v in manifest(Path(__file__).parent).items() if not k.startswith('runs/')},

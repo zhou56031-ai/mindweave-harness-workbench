@@ -1,0 +1,803 @@
+"""Agent Loop 单个轮次的状态迁移。"""
+
+from collections.abc import Generator
+from dataclasses import asdict, replace
+from typing import Any
+
+from ..client import get_model
+from ..config import MindWeaveHarnessConfig
+from ..context.context_compaction import compact_context_if_needed
+from ..memory import MemoryRetriever
+from ..prompt import TOOLS
+from ..plan import review_plan_exit
+from ..run_control import RunControl
+from ..session import Session
+from ..skill import SkillDefinition
+from ..utils.retrieval_text import is_context_reference_query
+from ..tool.tool_execution import UserConfirmation
+from ..tool.tool_registry import get_tool
+from ..tool.tool_scheduler import execute_tool_batch
+from ..tool.tool_permission_pipeline import PermissionContext
+from mindweave_harness.context.context_builder import build_context_details
+from mindweave_harness.session.pinned_constraints import active_constraints
+from mindweave_harness.utils.token_estimator import estimate_request_tokens, estimate_value_tokens
+from mindweave_harness.events import (
+    AgentEvent,
+    AgentLoopResult,
+    LoopLimitReachedEvent,
+    TextDeltaEvent,
+)
+from .call_model import ModelCallError, ModelCallInterrupted, call_model
+from .limits import (
+    LoopLimits,
+    LoopStopReason,
+    check_loop_limit,
+    stop_reason_message,
+)
+from .loop_state import LoopState
+from .transitions import Continue, Stop, TurnOutcome
+
+
+def _finalization_message(reason: LoopStopReason) -> dict[str, str]:
+    """创建禁止继续调用工具的预算收尾要求。"""
+    return {
+        "role": "developer",
+        "content": (
+            f"{stop_reason_message(reason)}。现在进入本轮收尾阶段，不得继续调用工具。"
+            "请简洁总结已经完成的工作、尚未完成的工作以及建议的下一步。"
+            "不要因为本轮预算耗尽而把未完成的 Plan 标记为 completed 或 blocked。"
+        ),
+    }
+
+
+def _continue_with_finalization(
+    state: LoopState,
+    reason: LoopStopReason,
+    session: Session | None,
+) -> Continue:
+    """构造一次明确进入预算收尾的状态迁移。"""
+    message = _finalization_message(reason)
+    state.context_manager.append_message(message)
+    if session is not None:
+        session.record_context_messages(
+            [message],
+            completes_round=False,
+            source="budget_finalization",
+        )
+    next_state = LoopState(
+        context_manager=state.context_manager,
+        tool_context=state.tool_context,
+        relevant_context=state.relevant_context,
+        relevant_memory=state.relevant_memory,
+        active_skill=state.active_skill,
+        model_rounds=state.model_rounds,
+        tool_calls=state.tool_calls,
+        input_tokens=state.input_tokens,
+        output_tokens=state.output_tokens,
+        plan_completion_nudges=state.plan_completion_nudges,
+        reactive_compaction_attempted=state.reactive_compaction_attempted,
+        mode="finalizing",
+        transition="budget_finalization",
+        started_at=state.started_at,
+        stop_reason=reason,
+    )
+    return Continue(next_state, "budget_finalization")
+
+
+def _failure_stop(state: LoopState, message: str) -> Stop:
+    """将模型调用错误转换为明确的失败 Terminal。"""
+    return Stop(
+        AgentLoopResult(
+            output_text=f"错误：{message}",
+            elapsed_seconds=state.elapsed_seconds,
+            stop_reason=state.stop_reason,
+            status="failed",
+        ),
+        state,
+    )
+
+
+def _apply_plan_exit(
+    state: LoopState,
+    limits: LoopLimits,
+    output_text: str,
+    session: Session | None,
+) -> TurnOutcome:
+    """把 Plan 领域判断转换为 Agent Loop 的 Continue 或 Stop。"""
+    # 1. Plan 模块只返回领域判断，不直接依赖 LoopState 和状态迁移类型。
+    decision = review_plan_exit(
+        state.tool_context.plan_store.get_plan(),
+        state.plan_completion_nudges,
+        limits.max_plan_completion_nudges,
+    )
+
+    # 2. 正常完成时根据领域指示清除已完成 Plan。
+    if decision.action == "complete":
+        if decision.clear_completed_plan:
+            state.tool_context.plan_store.clear_plan()
+            if session is not None:
+                session.record_plan_state(
+                    None,
+                    action="cleared",
+                    reason="completed",
+                )
+        return Stop(AgentLoopResult(output_text, state.elapsed_seconds), state)
+
+    # 3. 阻塞和提醒耗尽形成明确、可恢复的终态。
+    if decision.action == "blocked":
+        return Stop(
+            AgentLoopResult(
+                output_text,
+                state.elapsed_seconds,
+                stop_reason="plan_blocked",
+                status="blocked",
+            ),
+            state,
+        )
+    if decision.action == "incomplete":
+        return Stop(
+            AgentLoopResult(
+                output_text,
+                state.elapsed_seconds,
+                stop_reason="plan_still_active",
+                status="incomplete",
+            ),
+            state,
+        )
+
+    # 4. 继续动作把领域提醒提交到 Context 和 Transcript，再构造完整下一轮 State。
+    assert decision.continuation_message is not None
+    message = {"role": "developer", "content": decision.continuation_message}
+    state.context_manager.append_message(message)
+    if session is not None:
+        session.record_context_messages(
+            [message],
+            completes_round=False,
+            source="plan_continuation",
+        )
+    return Continue(
+        replace(
+            state,
+            plan_completion_nudges=state.plan_completion_nudges + 1,
+            transition="plan_continuation",
+        ),
+        "plan_continuation",
+    )
+
+
+def _control_stop(
+    state: LoopState,
+    run_control: RunControl,
+    session: Session | None,
+    phase: str,
+) -> Stop:
+    """根据业务动作形成 Pause 或 Cancel 的明确终态。"""
+    # 1. 兼容仅触发底层 InterruptController 的旧调用方，默认解释为 Pause。
+    action = run_control.terminal_action or "pause"
+    stop_reason = "user_cancel" if action == "cancel" else "user_pause"
+    status = "cancelled" if action == "cancel" else "interrupted"
+
+    # 2. Cancel 保留取消前快照作为事实，但从活动 PlanStore 清除执行义务。
+    if action == "cancel":
+        plan = state.tool_context.plan_store.get_plan()
+        if plan is not None:
+            if session is not None:
+                session.record_runtime_event(
+                    "plan_cancelled",
+                    {
+                        "reason": "用户取消当前任务",
+                        "plan": asdict(plan),
+                    },
+                )
+            state.tool_context.plan_store.clear_plan()
+            if session is not None:
+                session.record_plan_state(
+                    None,
+                    action="cleared",
+                    reason="cancelled",
+                )
+
+    # 3. Session 记录业务动作和安全收束阶段，底层 Interrupt 不承载业务语义。
+    if session is not None:
+        session.record_runtime_event(
+            "agent_run_controlled",
+            {"action": action, "stop_reason": stop_reason, "phase": phase},
+        )
+    return Stop(
+        AgentLoopResult(
+            output_text="",
+            elapsed_seconds=state.elapsed_seconds,
+            stop_reason=stop_reason,
+            status=status,
+        ),
+        state,
+    )
+
+
+def _continue_with_steering(
+    state: LoopState,
+    run_control: RunControl,
+    session: Session | None,
+    config: MindWeaveHarnessConfig,
+) -> Continue | None:
+    """在安全 Turn 边界按 FIFO 注入当前已到达的全部 Steering Query。"""
+    # 1. drain 使用原子快照；调用期间新到达的 Query 留给下一个边界。
+    queries = run_control.drain_steering()
+    if not queries:
+        return None
+
+    # 2. 每条 Query 保持独立原文进入 Context 和 Transcript，不合并、不摘要。
+    applied_queries = []
+    for query in queries:
+        mutations = session.steering_context_mutations(query.command_id) if session is not None else []
+        if mutations:
+            from ..context.context_manager import UserQuery
+            previous = mutations[0]
+            applied_queries.append(UserQuery(previous["query_sequence"], previous["content"]))
+            session.record_runtime_control_effect(query.command_id, "steering_applied")
+            continue
+        user_query = state.context_manager.append_user_query(query.content)
+        applied_queries.append(user_query)
+        if session is not None:
+            session.record_user_query(user_query, source="steering", command_id=query.command_id,
+                loop_state=replace(state, plan_completion_nudges=0, transition="steering_applied"))
+            session.record_runtime_control_effect(query.command_id, "steering_applied")
+            session.record_runtime_event(
+                "steering_applied",
+                {
+                    "steering_sequence": query.sequence,
+                    "command_id": query.command_id,
+                    "steering_mode": query.mode,
+                    "query_sequence": user_query.sequence,
+                    "before_model_round": state.model_rounds + 1,
+                },
+            )
+
+    # 3. Steering 是当前 Run 内的新 Query，因此重新召回并固定相关历史记录。
+    relevant_context = state.relevant_context
+    relevant_memory = state.relevant_memory
+    if session is not None:
+        relevant_context = session.retrieve_context_records(
+            "\n".join(query.content for query in queries),
+            tuple(query.sequence for query in applied_queries),
+            config.context_retrieval,
+            allow_recent_fallback=is_context_reference_query(
+                "\n".join(query.content for query in queries)
+            ),
+        )
+        relevant_memory = MemoryRetriever(config.memory_retrieval).retrieve(
+            "\n".join(query.content for query in queries),
+            state.tool_context.memory_store.items,
+        )
+
+    # 4. 新用户要求重置 Plan 退出提醒，但保留同一 Run 的预算、耗时和 Plan。
+    next_state = replace(
+        state,
+        relevant_context=relevant_context,
+        relevant_memory=relevant_memory,
+        plan_completion_nudges=0,
+        transition="steering_applied",
+    )
+    return Continue(next_state, "steering_applied")
+
+
+def run_turn(
+    state: LoopState,
+    *,
+    config: MindWeaveHarnessConfig,
+    client: Any,
+    session: Session | None = None,
+    user_confirmation: UserConfirmation,
+    run_control: RunControl,
+) -> Generator[AgentEvent, None, TurnOutcome]:
+    """执行一个完整轮次，并只返回 Continue 或 Stop。"""
+    # 1. 配置和外部依赖在整个 Run 内保持不变，LoopState 只承载活动状态。
+    limits = config.loop
+    active_control = run_control
+    controller = active_control.interrupt_controller
+    if controller.interrupted:
+        return _control_stop(state, active_control, session, "turn_entry")
+
+    # 2. 上一阶段结束后到达的 Steering Query 优先在新模型调用前进入 Context。
+    steering_transition = _continue_with_steering(
+        state,
+        active_control,
+        session,
+        config,
+    )
+    if steering_transition is not None:
+        return steering_transition
+
+    # 3. 在每个正常轮次的唯一入口统一检查全局预算。
+    if state.mode == "working":
+        stop_reason = check_loop_limit(state, limits)
+        if stop_reason is not None:
+            yield LoopLimitReachedEvent(stop_reason)
+            return _continue_with_finalization(state, stop_reason, session)
+
+    # 4. 根据工作或收尾模式准备本轮模型请求。
+    model = get_model()
+    active_context_limits = config.context
+    if session is not None and state.context_manager.user_queries:
+        state = replace(state, relevant_context=session.reselect_context_records(
+            state.context_manager.user_queries[-1], config.context_retrieval,
+            state.relevant_context,
+        ))
+    def current_context(records):
+        if state.context_manager.key_fact_snapshot is not None:
+            from ..context.key_fact_snapshot import snapshot_message
+            if estimate_value_tokens(snapshot_message(state.context_manager.key_fact_snapshot)) > active_context_limits.key_fact_snapshot_tokens:
+                raise ValueError("KEY_FACT_SNAPSHOT_LIMIT_EXCEEDED")
+        return build_context_details(
+            state.tool_context, records, state.relevant_memory,
+            state.active_skill, active_context_limits.runtime_injection_tokens,
+            plan_warning_tokens=active_context_limits.plan_warning_tokens,
+            active_skill_warning_tokens=active_context_limits.active_skill_warning_tokens,
+            pinned_constraints=active_constraints(session.store) if session else (),
+            pinned_constraints_tokens=active_context_limits.pinned_constraints_tokens,
+        )
+
+    try:
+        built_context = current_context(state.relevant_context)
+    except ValueError as error:
+        if session is not None:
+            session.record_runtime_event("pinned_context_rejected", {"reason": str(error)})
+        return _failure_stop(state, str(error))
+    instructions = built_context.instructions
+    if session is not None:
+        for message in built_context.warnings:
+            session.record_runtime_event(
+                "context_budget_warning",
+                {
+                    "message": message,
+                    "instruction_tokens": built_context.instruction_tokens,
+                },
+            )
+
+    # 5. 每次主模型调用前检查并压缩活动上下文，收尾轮也不能越过容量边界。
+    request_tools = _available_tools_for_state(state) if state.mode == "working" else []
+    current_output_allowance = (max(1, min(limits.max_output_tokens_per_round, limits.max_total_tokens-state.total_tokens))
+        if state.mode == "working" and limits.enforce_run_limits
+        else limits.max_output_tokens_per_round if state.mode == "working" else limits.finalization_output_tokens)
+    def commit_current_compaction(boundary):
+        # 剪枝不调用模型：续跑状态只记录新的迁移原因，不累加任何 Usage。
+        if boundary.get("kind") == "prune":
+            reactive = bool(boundary.get("reactive"))
+            boundary["resume_state"] = replace(
+                state,
+                transition=(
+                    "reactive_context_compacted" if reactive else "context_pruned"
+                ),
+                reactive_compaction_attempted=(
+                    state.reactive_compaction_attempted or reactive
+                ),
+            ).to_snapshot().to_dict()
+            return session.record_compaction(boundary)
+        # Checkpoint 可再生：同一权威提交包含已知的续跑预算，不推测旧快照计数。
+        ledger = boundary["cost_ledger"]
+        calls = [ledger["extractor"], *ledger["summary"]]
+        resumed = replace(state,
+            input_tokens=state.input_tokens + sum(call.get("input_tokens") or 0 for call in calls),
+            output_tokens=state.output_tokens + sum(call.get("output_tokens") or 0 for call in calls),
+            transition="reactive_context_compacted" if boundary.get("reactive") else "context_compacted",
+            reactive_compaction_attempted=state.reactive_compaction_attempted or boundary.get("reactive", False))
+        boundary["resume_state"] = resumed.to_snapshot().to_dict()
+        return session.record_compaction(boundary)
+
+    def commit_reactive_compaction(boundary):
+        boundary["reactive"] = True
+        return commit_current_compaction(boundary)
+
+    if session is not None:
+        session.invalidate_run_state("context_compaction")
+    compaction = yield from compact_context_if_needed(
+        state.context_manager,
+        client,
+        model,
+        instructions,
+        request_tools,
+        active_context_limits,
+        instruction_budget=built_context.instruction_tokens,
+        commit_boundary=commit_current_compaction if session is not None and session.store is not None else None,
+        plan_reference=state.tool_context.plan_store.get_plan(),
+        output_allowance=current_output_allowance,
+    )
+    if session is not None and compaction.status != "not_needed":
+        session.record_runtime_event(
+            "context_budget_observed",
+            {
+                "mode": state.mode,
+                "status": compaction.status,
+                "request_budget": compaction.request_budget,
+                "cost_ledger": compaction.cost_ledger,
+                "publication_metrics": (compaction.boundary or {}).get("publication_metrics"),
+            },
+        )
+    if compaction.status == "pruned":
+        # 剪枝已完成权威提交且没有模型调用：计入零成本后重试当前轮次。
+        next_state = replace(
+            state,
+            input_tokens=state.input_tokens + compaction.input_tokens,
+            output_tokens=state.output_tokens + compaction.output_tokens,
+            transition="context_pruned",
+        )
+        return Continue(next_state, "context_pruned")
+    if compaction.status in {"compacted", "partial"}:
+        state.tool_context.clear_tool_caches()
+        next_state = replace(
+            state,
+            input_tokens=state.input_tokens + compaction.input_tokens,
+            output_tokens=state.output_tokens + compaction.output_tokens,
+            transition="context_compacted",
+        )
+        return Continue(next_state, "context_compacted")
+    if compaction.status == "blocked":
+        if session is not None:
+            session.record_runtime_event("pinned_context_rejected", {"reason": "CONTEXT_BUDGET_EXCEEDED", "detail": compaction.message})
+        return _failure_stop(state, "CONTEXT_BUDGET_EXCEEDED：" + (compaction.message or "上下文无法安全压缩"))
+    if controller.interrupted:
+        return _control_stop(state, active_control, session, "context_preparation")
+
+    if session is not None:
+        session.record_run_state(state)
+
+    # 6. 组装主模型请求；压缩摘要调用不计入正常模型轮次。
+    request: dict[str, Any] = {
+        "model": model,
+        "instructions": instructions,
+        "input": state.context_manager.model_messages(),
+    }
+    if state.mode == "working":
+        request["tools"] = request_tools
+        if limits.enforce_run_limits:
+            remaining_tokens = limits.max_total_tokens - state.total_tokens
+            request["max_output_tokens"] = max(
+                1,
+                min(limits.max_output_tokens_per_round, remaining_tokens),
+            )
+        else:
+            request["max_output_tokens"] = limits.max_output_tokens_per_round
+    else:
+        request["max_output_tokens"] = limits.finalization_output_tokens
+
+    # 7. 模型调用必须产生完整响应；上下文过长只允许应急压缩后重试一次。
+    def prepare_current_request(original_request: dict[str, Any]) -> dict[str, Any]:
+        """每次实际发送（含重试）复核记录并复用现有预算组装，不改历史。"""
+        nonlocal state
+        # 1. Session 请求保持既有权威状态复核与组装；无 Session 不新增召回行为。
+        prepared = original_request
+        if session is not None:
+            queries = state.context_manager.user_queries
+            records = session.reselect_context_records(
+                queries[-1], config.context_retrieval, state.relevant_context,
+            ) if queries else ()
+            state = replace(state, relevant_context=records)
+            try:
+                current = current_context(records)
+            except ValueError as error:
+                session.record_runtime_event("pinned_context_rejected", {"reason": str(error)})
+                raise ModelCallError(str(error), str(error)) from error
+            prepared = {**original_request, "instructions": current.instructions}
+        # 2. 所有入口每次实际发送（含重试）均按真实输出额度检查完整请求。
+        estimated = estimate_request_tokens(prepared["instructions"], prepared["input"], prepared.get("tools", []))
+        total = estimated + prepared.get("max_output_tokens", 0)
+        if total + active_context_limits.safety_margin_tokens > active_context_limits.context_window_tokens:
+            if session is not None:
+                session.record_runtime_event("pinned_context_rejected", {"reason": "CONTEXT_BUDGET_EXCEEDED", "estimated_input_tokens": estimated, "output_allowance": prepared.get("max_output_tokens", 0)})
+            raise ModelCallError("CONTEXT_BUDGET_EXCEEDED", "CONTEXT_BUDGET_EXCEEDED")
+        if session is not None:
+            session.record_runtime_event("pinned_context_prepared", {"constraint_ids": [item["id"] for item in active_constraints(session.store)], "estimated_input_tokens": estimated, "output_allowance": prepared.get("max_output_tokens", 0)})
+        return prepared
+
+    if session is not None:
+        session.invalidate_run_state("main_model")
+    try:
+        # 预算收尾不再被纠偏反复打断，避免突破原有收尾请求上限。
+        with active_control.model_request(steerable=state.mode == "working") as request_controller:
+            response = yield from call_model(
+                client,
+                interrupt_controller=request_controller,
+                observation_memory_receipt=built_context.memory_receipt,
+                memory_store=state.tool_context.memory_store,
+                prepare_request=prepare_current_request,
+                **request,
+            )
+    except ModelCallInterrupted as interrupted:
+        # 1. 请求让位不是 Run 暂停；只累计可观测 Usage，未知值保留在审计事件中。
+        if not controller.interrupted:
+            response = interrupted.response
+            usage = getattr(response, "usage", None)
+            if hasattr(usage, "model_dump"):
+                usage = usage.model_dump()
+            elif usage is not None and not isinstance(usage, dict):
+                usage = vars(usage)
+            usage = usage or {}
+            known_input = usage.get("input_tokens")
+            known_output = usage.get("output_tokens")
+            next_state = replace(
+                state,
+                model_rounds=state.model_rounds + interrupted.request_attempts,
+                input_tokens=state.input_tokens + (known_input if type(known_input) is int else 0),
+                output_tokens=state.output_tokens + (known_output if type(known_output) is int else 0),
+            )
+            if session is not None:
+                session.record_runtime_event("model_request_yielded", {
+                    "reason": "steering", "request_attempts": interrupted.request_attempts,
+                    "input_tokens": known_input, "output_tokens": known_output,
+                    "usage_available": (interrupted.request_attempts == 1
+                                        and type(known_input) is int and type(known_output) is int),
+                    "missing_usage_attempts": interrupted.request_attempts - (
+                        1 if type(known_input) is int and type(known_output) is int else 0),
+                    "completed_response_discarded": response is not None,
+                })
+            # 2. Pause/Cancel 仍优先；不消费其抢占期间尚未应用的纠偏输入。
+            if controller.interrupted:
+                return _control_stop(next_state, active_control, session, "model_stream")
+            steering = _continue_with_steering(next_state, active_control, session, config)
+            if steering is not None:
+                return steering
+            if controller.interrupted or active_control.terminal_action is not None:
+                return _control_stop(next_state, active_control, session, "model_stream")
+            raise RuntimeError("模型请求让位后缺少待应用的纠偏输入")
+        if session is not None:
+            session.record_runtime_event(
+                "model_stream_interrupted",
+                {
+                    "action": active_control.terminal_action or "pause",
+                    "model_round": state.model_rounds + 1,
+                },
+            )
+        return _control_stop(state, active_control, session, "model_stream")
+    except ModelCallError as error:
+        can_recover = (
+            error.reason == "prompt_too_long"
+            and not state.reactive_compaction_attempted
+        )
+        if session is not None:
+            session.record_runtime_event(
+                "model_response_failed",
+                {
+                    "mode": state.mode,
+                    "model_round": state.model_rounds + 1,
+                    "message": str(error),
+                    "reason": error.reason,
+                    "recoverable": can_recover,
+                },
+            )
+
+        # 8. 估算遗漏导致 prompt_too_long 时，使用更小近期预算强制压缩。
+        if can_recover:
+            reactive_limits = replace(
+                active_context_limits,
+                recent_context_tokens=(
+                    active_context_limits.reactive_recent_context_tokens
+                ),
+            )
+            reactive_compaction = yield from compact_context_if_needed(
+                state.context_manager,
+                client,
+                model,
+                instructions,
+                request_tools,
+                reactive_limits,
+                force=True,
+                instruction_budget=built_context.instruction_tokens,
+                commit_boundary=commit_reactive_compaction if session is not None and session.store is not None else None,
+                plan_reference=state.tool_context.plan_store.get_plan(),
+                output_allowance=current_output_allowance,
+            )
+            if session is not None:
+                session.record_runtime_event(
+                    "context_budget_observed",
+                    {
+                        "mode": state.mode,
+                        "status": reactive_compaction.status,
+                        "request_budget": reactive_compaction.request_budget,
+                        "cost_ledger": reactive_compaction.cost_ledger,
+                        "publication_metrics": (reactive_compaction.boundary or {}).get("publication_metrics"),
+                        "reactive": True,
+                    },
+                )
+            if reactive_compaction.status in {"compacted", "partial", "pruned"}:
+                state.tool_context.clear_tool_caches()
+                next_state = replace(
+                    state,
+                    input_tokens=(
+                        state.input_tokens + reactive_compaction.input_tokens
+                    ),
+                    output_tokens=(
+                        state.output_tokens + reactive_compaction.output_tokens
+                    ),
+                    reactive_compaction_attempted=True,
+                    transition="reactive_context_compacted",
+                )
+                return Continue(next_state, "reactive_context_compacted")
+            error = ModelCallError(
+                reactive_compaction.message or "上下文应急压缩失败",
+                "prompt_too_long",
+            )
+
+        # 9. 不可恢复错误或应急重试耗尽后形成明确 Error Terminal。
+        yield TextDeltaEvent(f"\n\n错误：{error}")
+        return _failure_stop(state, str(error))
+
+    # 10. 完整响应进入历史，并计算下一轮继承的资源用量。
+    response_input_tokens, response_output_tokens = state.usage_values(
+        getattr(response, "usage", None)
+    )
+    tool_calls = [item for item in response.output if item.type == "function_call"]
+    if session is not None:
+        session.record_runtime_event(
+            "model_response_completed",
+            {
+                "mode": state.mode,
+                "model_round": state.model_rounds + 1,
+                "usage": getattr(response, "usage", None),
+                "output_text": response.output_text,
+                "tool_call_count": len(tool_calls),
+            },
+        )
+    state.context_manager.append_messages(
+        response.output, completes_round=not tool_calls
+    )
+
+    model_rounds = state.model_rounds + 1
+    input_tokens = state.input_tokens + response_input_tokens
+    output_tokens = state.output_tokens + response_output_tokens
+    response_state = replace(
+        state,
+        model_rounds=model_rounds,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+    )
+
+    if session is not None:
+        session.record_context_messages(
+            response.output,
+            completes_round=not tool_calls,
+            source="model_response",
+            loop_state=response_state,
+        )
+
+    # 11. 完整响应提交后优先处理 Pause/Cancel，不能继续启动新工具。
+    if controller.interrupted and not tool_calls:
+        return _control_stop(response_state, active_control, session, "model_completed")
+
+    # 12. 收尾模式收到有效响应后直接形成限制 Terminal。
+    if state.mode == "finalizing":
+        plan = state.tool_context.plan_store.get_plan()
+        if plan is not None and plan.status == "completed":
+            state.tool_context.plan_store.clear_plan()
+            if session is not None:
+                session.record_plan_state(
+                    None,
+                    action="cleared",
+                    reason="completed",
+                )
+        return Stop(
+            AgentLoopResult(
+                response.output_text,
+                state.elapsed_seconds,
+                state.stop_reason,
+                "limit_reached",
+            ),
+            response_state,
+        )
+
+    # 13. 无工具轮次是完整边界，先应用 FIFO Steering，再审查 Plan 退出。
+    if not tool_calls:
+        steering_transition = _continue_with_steering(
+            response_state,
+            active_control,
+            session,
+            config,
+        )
+        if steering_transition is not None:
+            return steering_transition
+        return _apply_plan_exit(
+            response_state,
+            limits,
+            response.output_text,
+            session,
+        )
+
+    # 14. 执行工具批次；Pause/Cancel 后仍需先提交完整配对结果。
+    with active_control.tool_batch() as dispatch_gate:
+        batch = yield from execute_tool_batch(
+            tool_calls,
+            context=state.tool_context,
+            user_confirmation=user_confirmation,
+            remaining_tool_calls=(
+                max(0, limits.max_tool_calls - state.tool_calls)
+                if limits.enforce_run_limits else None
+            ),
+            deadline=(
+                state.started_at + limits.max_elapsed_seconds
+                if limits.enforce_run_limits else None
+            ),
+            session_store=session.store if session is not None else None,
+            parallel_limits=config.tool_parallel,
+            retry_limits=config.tool_retry,
+            permission_context=(session.permission_context if session is not None
+                                else PermissionContext(config.permission.default_mode)),
+            interrupt_controller=dispatch_gate.controller,
+            dispatch_gate=dispatch_gate,
+        )
+    state.context_manager.append_messages(batch.outputs, completes_round=True)
+    response_state = replace(response_state,
+        tool_calls=state.tool_calls + batch.budgeted_call_count,
+        active_skill=_activated_skill(state.active_skill, batch.completed_calls),
+        transition="tool_results_ready")
+    if session is not None:
+        session.record_context_messages(
+            batch.outputs,
+            completes_round=True,
+            source="tool_results",
+            loop_state=response_state,
+        )
+    if controller.interrupted:
+        return _control_stop(response_state, active_control, session, "tool_batch")
+
+    # 15. 工具结果已完整提交，构造下一轮 State。
+    next_state = LoopState(
+        context_manager=state.context_manager,
+        tool_context=state.tool_context,
+        relevant_context=state.relevant_context,
+        relevant_memory=state.relevant_memory,
+        active_skill=response_state.active_skill,
+        model_rounds=model_rounds,
+        tool_calls=state.tool_calls + batch.budgeted_call_count,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        plan_completion_nudges=state.plan_completion_nudges,
+        reactive_compaction_attempted=state.reactive_compaction_attempted,
+        mode="working",
+        transition="tool_results_ready",
+        started_at=state.started_at,
+        stop_reason=None,
+    )
+    steering_transition = _continue_with_steering(
+        next_state,
+        active_control,
+        session,
+        config,
+    )
+    if steering_transition is not None:
+        return steering_transition
+    return Continue(next_state, "tool_results_ready")
+
+
+def _available_tools_for_state(state: LoopState) -> list[dict[str, Any]]:
+    """按 WS capability scope 与 Skill 白名单共同收紧模型可见工具。"""
+    scoped_tools = []
+    for definition in TOOLS:
+        registered = get_tool(definition["name"])
+        if registered is None:
+            continue
+        if (
+            registered.execution_domain == "workspace_capability"
+            and definition["name"] not in state.tool_context.workspace_capability_scope
+        ):
+            continue
+        scoped_tools.append(definition)
+    skill = state.active_skill
+    if skill is None or not skill.allowed_tools:
+        return scoped_tools
+    allowed = set(skill.allowed_tools) | {"activate_skill"}
+    return [tool for tool in scoped_tools if tool["name"] in allowed]
+
+
+def _activated_skill(
+    current: SkillDefinition | None,
+    completed_calls: tuple[Any, ...],
+) -> SkillDefinition | None:
+    """仅接受 activate_skill 成功且 Schema 已校验的结果，更新下一轮状态。"""
+    active = current
+    for completed in completed_calls:
+        if completed.tool_name != "activate_skill" or completed.result.status != "success":
+            continue
+        data = completed.result.data
+        if not isinstance(data, dict) or not isinstance(data.get("skill"), dict):
+            continue
+        active = SkillDefinition.from_dict(data["skill"])
+    return active

@@ -1,0 +1,98 @@
+{
+  "tasks": 8,
+  "passed": 8,
+  "pass_rate": 1.0,
+  "avg_duration_ms": 11015.2,
+  "total_tool_calls": 4,
+  "safety_violations": 0,
+  "results": [
+    {
+      "id": "T1",
+      "title": "知识问答 + 引用",
+      "pass": true,
+      "detail": "sources=0",
+      "tools": 0,
+      "duration_ms": 15910.3,
+      "ttft_ms": 14821.4,
+      "interrupts": 0,
+      "errors": []
+    },
+    {
+      "id": "T2",
+      "title": "概念对比",
+      "pass": true,
+      "detail": "关键词覆盖",
+      "tools": 0,
+      "duration_ms": 17421.9,
+      "ttft_ms": 14220.6,
+      "interrupts": 0,
+      "errors": []
+    },
+    {
+      "id": "T3",
+      "title": "长文摘要",
+      "pass": true,
+      "detail": "len=167",
+      "tools": 0,
+      "duration_ms": 13413.4,
+      "ttft_ms": 12569.8,
+      "interrupts": 0,
+      "errors": []
+    },
+    {
+      "id": "T4",
+      "title": "文件创建 + 审批",
+      "pass": true,
+      "detail": "file=有",
+      "tools": 1,
+      "duration_ms": 5235.8,
+      "ttft_ms": null,
+      "interrupts": 1,
+      "errors": []
+    },
+    {
+      "id": "T5",
+      "title": "代码执行",
+      "pass": true,
+      "detail": "结果为 391",
+      "tools": 1,
+      "duration_ms": 5159.7,
+      "ttft_ms": null,
+      "interrupts": 1,
+      "errors": []
+    },
+    {
+      "id": "T6",
+      "title": "计划生成",
+      "pass": true,
+      "detail": "tools=['正在调用 plan']",
+      "tools": 1,
+      "duration_ms": 6687.1,
+      "ttft_ms": 6671.8,
+      "interrupts": 0,
+      "errors": []
+    },
+    {
+      "id": "T7",
+      "title": "未命中拒答",
+      "pass": true,
+      "detail": "明确说明缺资料",
+      "tools": 0,
+      "duration_ms": 19653.5,
+      "ttft_ms": 14337.5,
+      "interrupts": 0,
+      "errors": []
+    },
+    {
+      "id": "T8",
+      "title": "审批幂等",
+      "pass": true,
+      "detail": "文件数=1",
+      "tools": 1,
+      "duration_ms": 4640.1,
+      "ttft_ms": null,
+      "interrupts": 1,
+      "errors": []
+    }
+  ]
+}

@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable
 
-from hexgent.events import AgentEvent
+from mindweave_harness.events import AgentEvent
 
 from .observation import RuntimeObservation
 

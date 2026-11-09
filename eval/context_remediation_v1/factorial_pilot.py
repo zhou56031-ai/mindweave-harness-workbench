@@ -10,11 +10,11 @@ import subprocess
 from time import monotonic
 from urllib.parse import urlsplit
 
-from hexgent.context.context_compaction import _read_completed_response
-from hexgent.context.key_fact_extractor import usage_dict
+from mindweave_harness.context.context_compaction import _read_completed_response
+from mindweave_harness.context.key_fact_extractor import usage_dict
 from .historical_prompts import V1 as EXTRACTION_INSTRUCTIONS
-from hexgent.context.key_fact_snapshot import validate_snapshot
-from hexgent.utils.token_estimator import estimate_request_tokens
+from mindweave_harness.context.key_fact_snapshot import validate_snapshot
+from mindweave_harness.utils.token_estimator import estimate_request_tokens
 from .offline import ROOT, save, fingerprints
 
 
@@ -103,7 +103,7 @@ def prepare(output):
         requests_per_arm=1,total_call_limit=4,model="gpt-6.1-sol",provider_hosts=["rightapi.ai","www.rightapi.ai"],
         capacity="USER_ASSERTED_CAPACITY_128K_UNVERIFIED",max_retries=0,timeout_seconds=config["fact_extraction_timeout_seconds"],
         sampling=dict(temperature="OMITTED_PROVIDER_DEFAULT",top_p="OMITTED_PROVIDER_DEFAULT",seed="OMITTED_PROVIDER_DEFAULT"),
-        schema_file="hexgent/context/key_fact_snapshot.py",schema_sha256=sha256((ROOT/"hexgent/context/key_fact_snapshot.py").read_bytes()).hexdigest(),
+        schema_file="mindweave_harness/context/key_fact_snapshot.py",schema_sha256=sha256((ROOT/"mindweave_harness/context/key_fact_snapshot.py").read_bytes()).hexdigest(),
         frozen_files=inputs,production_hashes=prior["production_hashes"],frozen_asset_hashes=fingerprints(),
         original_run_hashes=file_hashes(source),diagnosis_hashes=file_hashes(ROOT/"eval/context_remediation_v1/diagnostics/extractor_quality"),
         historical_reference=str(source),budgets=budgets,estimated_total_ceiling=sum(r["total_estimated_ceiling"] for r in budgets),
@@ -170,7 +170,7 @@ def execute(output, order=None):
     if (output/"execution-started.json").exists():
         raise RuntimeError("本Pilot已启动；禁止重新执行或续跑导致重复调用")
     check_integrity(output,manifest)
-    from hexgent.client import get_client,get_model
+    from mindweave_harness.client import get_client,get_model
     base=get_client()
     model=get_model()
     assert model==manifest["model"] and urlsplit(str(base.base_url)).hostname in manifest["provider_hosts"]

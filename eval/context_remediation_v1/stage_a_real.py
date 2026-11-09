@@ -7,10 +7,10 @@ import subprocess
 from time import monotonic
 from urllib.parse import urlsplit
 
-from hexgent.client import get_client, get_model
-from hexgent.context import ContextLimits, ContextManager
-from hexgent.context.context_compaction import _select_cut_index, COMPACTION_INSTRUCTIONS
-from hexgent.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS, extract_snapshot, FactExtractionError
+from mindweave_harness.client import get_client, get_model
+from mindweave_harness.context import ContextLimits, ContextManager
+from mindweave_harness.context.context_compaction import _select_cut_index, COMPACTION_INSTRUCTIONS
+from mindweave_harness.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS, extract_snapshot, FactExtractionError
 from .offline import ROOT, save, fingerprints
 
 

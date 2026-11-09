@@ -12,9 +12,9 @@ from eval.context_management.c2_prep_2.runner import seed
 from eval.context_management.c2_prep_2.control import reconcile
 from eval.context_management.c2_prep.prepare import StreamRecorder
 from eval.context_management.c1_independent import Gate, plain, save, hashes, response
-from hexgent.agent_engine import AgentEngine
-from hexgent.config import validate_config
-from hexgent.utils.token_estimator import estimate_request_tokens
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.config import validate_config
+from mindweave_harness.utils.token_estimator import estimate_request_tokens
 
 
 def policy(manifest,stage=None):
@@ -69,7 +69,7 @@ def execute(entry,output,budget,summary_override=None):
     trace=TokenTrace(native,directory/'provider-trace.json',budget.bind(identifier),eval_run_id=output.name,
         fixture_id=identifier,session=engine.session,main_fake=fake)
     # 所有实际调用为Fake；模型ID按合同记录，不构造SDK或发出网络请求。
-    with patch('hexgent.loop.agent_turn.get_model',return_value='gpt-6.1-sol'):
+    with patch('mindweave_harness.loop.agent_turn.get_model',return_value='gpt-6.1-sol'):
         events=list(engine.run(query,client=trace))
     obs=[json.loads(line) for line in (engine.session.store.session_dir/'observation.jsonl').read_text().splitlines()]
     attribution=reconcile(trace,obs)

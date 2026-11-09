@@ -11,12 +11,12 @@ from types import SimpleNamespace
 from typing import Any, Iterable
 from unittest.mock import patch
 
-from hexgent.context import ContextManager
-from hexgent.events import AgentEvent, RunFinishedEvent
-from hexgent.loop.loop_state import LoopState
-from hexgent.plan import InMemoryPlanStore
-from hexgent.run_control import RunControl
-from hexgent.tool.tool_context import ToolExecutionContext
+from mindweave_harness.context import ContextManager
+from mindweave_harness.events import AgentEvent, RunFinishedEvent
+from mindweave_harness.loop.loop_state import LoopState
+from mindweave_harness.plan import InMemoryPlanStore
+from mindweave_harness.run_control import RunControl
+from mindweave_harness.tool.tool_context import ToolExecutionContext
 
 
 @dataclass(frozen=True)
@@ -112,8 +112,8 @@ def run_trace(
     user_confirmation: Any | None = None,
 ) -> tuple[StateTrace, FakeModel]:
     """使用正式 Agent Loop 运行一条确定性模型轨迹。"""
-    from hexgent.config import HexgentConfig
-    from hexgent.loop import agent_loop as loop_module
+    from mindweave_harness.config import MindWeaveHarnessConfig
+    from mindweave_harness.loop import agent_loop as loop_module
 
     model = FakeModel(list(responses))
     context = tool_context or ToolExecutionContext(
@@ -123,7 +123,7 @@ def run_trace(
     with patch.object(loop_module, "get_client", return_value=SimpleNamespace(responses=model)):
         events = list(loop_module.agent_loop(
             state,
-            config=config or HexgentConfig(),
+            config=config or MindWeaveHarnessConfig(),
             session=session,
             run_control=run_control or RunControl(),
             **(
@@ -151,8 +151,8 @@ def run_trace_capturing_failure(
     该夹具只用于评测中的受控 crash point：已经 yield 的实时事件和已经写入的
     Transcript 仍来自 Production Loop；它不补写或伪造任何 Runtime 事实。
     """
-    from hexgent.config import HexgentConfig
-    from hexgent.loop import agent_loop as loop_module
+    from mindweave_harness.config import MindWeaveHarnessConfig
+    from mindweave_harness.loop import agent_loop as loop_module
 
     model = FakeModel(list(responses))
     context = tool_context or ToolExecutionContext(
@@ -166,7 +166,7 @@ def run_trace_capturing_failure(
             events.extend(
                 loop_module.agent_loop(
                     state,
-                    config=config or HexgentConfig(),
+                    config=config or MindWeaveHarnessConfig(),
                     session=session,
                     run_control=run_control or RunControl(),
                     **(

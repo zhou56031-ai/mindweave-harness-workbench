@@ -56,7 +56,7 @@ def main():
                 directory=root/case["id"]/f"pair-{pair['pair']}"/"Pinned"
                 audit=json.loads((directory/"request-wrapper-audit.json").read_text())[0]
                 original=audit["original"]
-                from hexgent.utils.token_estimator import estimate_request_tokens
+                from mindweave_harness.utils.token_estimator import estimate_request_tokens
                 estimated_deltas.append(audit["estimated_input_tokens"]-estimate_request_tokens(original["instructions"],original["input"],original.get("tools",[])))
         summary.append(dict(case=case["id"],planned_pairs=3,executed_pairs=len(pairs),paired_outcomes=counts,sides=sides,
             first_request_provider_input_delta_pinned_minus_baseline=first_input_deltas,

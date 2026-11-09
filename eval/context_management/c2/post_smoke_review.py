@@ -173,12 +173,12 @@ def snapshot(folder):
 def run_review(output):
     manifest=read(RUN/'execution_manifest.json')
     old=RUN.parent/'stage1-real-20261011T090900010334Z'
-    before=dict(production=snapshot(REPO/'hexgent'),raw_run=snapshot(RUN),failed_run=snapshot(old),
+    before=dict(production=snapshot(REPO/'mindweave_harness'),raw_run=snapshot(RUN),failed_run=snapshot(old),
         frozen={**manifest['protected_before'],**manifest['prep3_before']})
     f1=read(RUN/'F1-02/evidence.json'); l2=read(RUN/'L2/evidence.json')
     calls=[c for c in f1['calls'] if c['call_type']=='COMPACTION']
     main=next(c for c in f1['calls'] if c['call_type']=='MAIN')
-    from hexgent.utils.token_estimator import estimate_request_tokens
+    from mindweave_harness.utils.token_estimator import estimate_request_tokens
     outcomes=[]
     for i,c in enumerate(calls):
         candidate=f1['actual_candidates'][i]
@@ -200,7 +200,7 @@ def run_review(output):
     assert [x['candidate_full_request_estimated_tokens'] for x in outcomes]==[3550,3550,3438]
     assert [x['meaningful_savings'] for x in outcomes]==[True,False,False]
     timeline=[dict(step=1,action='proactive触发',estimated_tokens=4038,threshold=3401,source='events[0]及run_configuration.context',
-                   code='hexgent/context/context_compaction.py:165-181'),
+                   code='mindweave_harness/context/context_compaction.py:165-181'),
               dict(step=2,action='周期1 attempt1',call=outcomes[0]),
               dict(step=3,action='partial接受与安全Checkpoint',transcript_sequences=[13,14,15],
                    active_message_count=2,round_boundaries=[1],partial_count=1,compaction_count=1,
@@ -371,7 +371,7 @@ def run_review(output):
                distinction='原始execution_result是执行/source Gate，不是语义Gate，后续result独立引用，没有改写原始结果',
                report_usage_gap='Production Run Report MAIN-only，不能替代Eval全调用Usage')
     save(output/'cross_check.json',cross)
-    after=dict(production=snapshot(REPO/'hexgent'),raw_run=snapshot(RUN),failed_run=snapshot(old),
+    after=dict(production=snapshot(REPO/'mindweave_harness'),raw_run=snapshot(RUN),failed_run=snapshot(old),
                frozen={p:digest(Path(p)) for p in before['frozen']})
     diff=subprocess.run(['git','diff','--check'],cwd=REPO,capture_output=True,text=True)
     checks={k+'_unchanged':before[k]==after[k] for k in before}
@@ -384,8 +384,8 @@ def run_review(output):
     save(output/'hash_check.json',checks)
     save(output/'evidence_index.json',dict(original_run=str(RUN),original_failure_run=str(old),
         script=str(Path(__file__)),raw_artifacts=[dict(path=p,sha256=h) for p,h in before['raw_run'].items()],
-        source_locations=['hexgent/context/context_compaction.py:165-332','hexgent/context/context_manager.py:154-232',
-                          'hexgent/loop/agent_turn.py:344-380','hexgent/loop/agent_loop.py:112-135',
+        source_locations=['mindweave_harness/context/context_compaction.py:165-332','mindweave_harness/context/context_manager.py:154-232',
+                          'mindweave_harness/loop/agent_turn.py:344-380','mindweave_harness/loop/agent_loop.py:112-135',
                           'eval/context_management/c2/stage1_live.py:36-48','eval/context_management/c2_dispatch_guard_repair/entry.py:27-74']))
     readiness=dict(gate='STAGE2_REVIEW_WITH_KNOWN_QUALITY_RISKS',stage2_approved=False,stage2_executed=False,
         recommend_continue_subject_to_human_approval=True,

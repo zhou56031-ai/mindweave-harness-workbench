@@ -10,17 +10,17 @@ import unittest
 from unittest.mock import patch
 
 from openai.types.responses import ResponseOutputMessage, ResponseOutputText
-from hexgent.agent_engine import AgentEngine, RunRequest
-from hexgent.config import HexgentConfig
-from hexgent.context.context_builder import build_context_details
-from hexgent.context.context_compaction import compact_context_if_needed
-from hexgent.events import ToolFinishedEvent
-from hexgent.run_control import RunControl
-from hexgent.session.pinned_constraints import active_constraints, replay_constraints
-from hexgent.session.session_store import SessionStore
-from hexgent.adapters.cli.pinned_commands import handle_pinned_command
-from hexgent.tool.tool_registry import TOOL_REGISTRY
-from hexgent.utils.token_estimator import estimate_request_tokens
+from mindweave_harness.agent_engine import AgentEngine, RunRequest
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.context.context_builder import build_context_details
+from mindweave_harness.context.context_compaction import compact_context_if_needed
+from mindweave_harness.events import ToolFinishedEvent
+from mindweave_harness.run_control import RunControl
+from mindweave_harness.session.pinned_constraints import active_constraints, replay_constraints
+from mindweave_harness.session.session_store import SessionStore
+from mindweave_harness.adapters.cli.pinned_commands import handle_pinned_command
+from mindweave_harness.tool.tool_registry import TOOL_REGISTRY
+from mindweave_harness.utils.token_estimator import estimate_request_tokens
 from eval.support.agent_contracts import FakeModel, text_response, tool_call
 from .production_acceptance import hashes, save
 
@@ -38,7 +38,7 @@ class Acceptance(unittest.TestCase):
         self.directory = self.output / self._testMethodName
         self.directory.mkdir()
         self.root = self.directory / "workspace"
-        base = HexgentConfig()
+        base = MindWeaveHarnessConfig()
         self.config = replace(base, context_extraction=replace(base.context_extraction, enabled=False),
                               memory_retrieval=replace(base.memory_retrieval, enabled=False))
         self.engine = AgentEngine(self.config, self.root)
@@ -183,7 +183,7 @@ class Acceptance(unittest.TestCase):
                 context_window_tokens=self.config.context.context_window_tokens,
                 safety_margin_tokens=self.config.context.safety_margin_tokens))
             return value
-        with patch("hexgent.loop.agent_turn.estimate_request_tokens", side_effect=observe_estimate):
+        with patch("mindweave_harness.loop.agent_turn.estimate_request_tokens", side_effect=observe_estimate):
             model, events = self.run_model()
         self.evidence["observations"].append(dict(kind="FULL_BUDGET_CANDIDATE", candidates=candidates,
             provider_dispatch_count=len(model.calls)))
@@ -196,7 +196,7 @@ class Acceptance(unittest.TestCase):
         def create(**request):
             captured.append(request)
             return iter([]) if len(captured) == 1 else native.create(**request)
-        with patch("hexgent.loop.agent_turn.active_constraints", wraps=active_constraints) as reads:
+        with patch("mindweave_harness.loop.agent_turn.active_constraints", wraps=active_constraints) as reads:
             events = list(self.engine.run("继续", client=SimpleNamespace(responses=SimpleNamespace(create=create))))
             self.assertGreaterEqual(reads.call_count, 3)
         self.evidence["requests"].append(dict(kind="RETRY", calls=captured, result=asdict(events[-1].result)))
@@ -218,7 +218,7 @@ class Acceptance(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "SESSION_STALE"):
             stale.append_transcript("陈旧写入", {})
         self.assertEqual(store.transcript_path.read_bytes(), before)
-        code = "from pathlib import Path; import sys; from hexgent.session.session_store import SessionStore; s=SessionStore.open_existing(Path(sys.argv[1]),sys.argv[2]); s.append_transcript('foreign',{})"
+        code = "from pathlib import Path; import sys; from mindweave_harness.session.session_store import SessionStore; s=SessionStore.open_existing(Path(sys.argv[1]),sys.argv[2]); s.append_transcript('foreign',{})"
         with store.write_guard():
             child = subprocess.run([sys.executable, "-c", code, str(self.root), store.session_id], capture_output=True, text=True, timeout=10)
         self.evidence["observations"].append(dict(child_returncode=child.returncode, stderr=child.stderr))
@@ -273,8 +273,8 @@ class Acceptance(unittest.TestCase):
             tool_call("model-pin", "pin", '{"text":"模型伪造约束"}')]), text_response("完成")])
         self.assertEqual(self.engine.list_pinned_constraints(), before)
         self.assertEqual(len([e for e in self.engine.session.store.read_transcript() if e["type"] == "pinned_constraint_committed"]), 1)
-        from hexgent.adapters.web.routes import router as web_router
-        from hexgent.adapters.integration.routes import router as integration_router
+        from mindweave_harness.adapters.web.routes import router as web_router
+        from mindweave_harness.adapters.integration.routes import router as integration_router
         routes = [r.path for router in (web_router, integration_router) for r in router.routes]
         self.assertFalse(any("pin" in route.lower() or "constraint" in route.lower() for route in routes))
         self.evidence["observations"].append(dict(service_routes=routes,

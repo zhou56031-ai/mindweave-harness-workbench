@@ -5,12 +5,12 @@ import json
 from pathlib import Path
 import subprocess
 
-from hexgent.context.context_budget import ContextLimits
-from hexgent.context.context_manager import ContextManager
-from hexgent.context.context_compaction import _select_cut_index
-from hexgent.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS
-from hexgent.context.key_fact_snapshot import validate_snapshot, snapshot_message
-from hexgent.utils.token_estimator import estimate_value_tokens
+from mindweave_harness.context.context_budget import ContextLimits
+from mindweave_harness.context.context_manager import ContextManager
+from mindweave_harness.context.context_compaction import _select_cut_index
+from mindweave_harness.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS
+from mindweave_harness.context.key_fact_snapshot import validate_snapshot, snapshot_message
+from mindweave_harness.utils.token_estimator import estimate_value_tokens
 from .offline import ROOT, fingerprints, save
 
 
@@ -25,7 +25,7 @@ def main():
     if output.exists():
         raise RuntimeError("禁止覆盖已有诊断目录")
     output.mkdir(parents=True)
-    prod=hashes(ROOT/"hexgent")
+    prod=hashes(ROOT/"mindweave_harness")
     original=hashes(run)
     frozen=fingerprints()
     request=json.loads((run/"extractor-request.json").read_text())
@@ -151,7 +151,7 @@ def main():
     diff=subprocess.run(["git","diff","--check"],cwd=ROOT,capture_output=True,text=True)
     integrity=dict(gate="DIAGNOSIS_COMPLETE",created_at=datetime.now(timezone.utc).isoformat(),
         original_run=str(run),stage_a_artifacts_before=original,stage_a_artifacts_after=hashes(run),
-        production_before=prod,production_after=hashes(ROOT/"hexgent"),
+        production_before=prod,production_after=hashes(ROOT/"mindweave_harness"),
         frozen_before=frozen,frozen_after=fingerprints(),network_requests=0,real_model_calls=0,
         git_diff_check=dict(exit_code=diff.returncode,output=diff.stdout+diff.stderr),
         source_dispatch_request_complete=True,raw_response_association=True,

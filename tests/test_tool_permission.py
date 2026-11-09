@@ -3,11 +3,11 @@
 from pathlib import Path
 import unittest
 
-from hexgent.plan import InMemoryPlanStore
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.tool.tool_execution import execute_tool_call
-from hexgent.tool.tool_permission_pipeline import PermissionContext, evaluate_permission
-from hexgent.tool.tool_registry import get_tool
+from mindweave_harness.plan import InMemoryPlanStore
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.tool.tool_execution import execute_tool_call
+from mindweave_harness.tool.tool_permission_pipeline import PermissionContext, evaluate_permission
+from mindweave_harness.tool.tool_registry import get_tool
 
 
 class ToolPermissionTest(unittest.TestCase):
@@ -15,7 +15,7 @@ class ToolPermissionTest(unittest.TestCase):
 
     def setUp(self) -> None:
         """创建具有明确工作区的工具上下文。"""
-        self.workdir = Path("/tmp/hexgent-workspace").resolve()
+        self.workdir = Path("/tmp/mindweave_harness-workspace").resolve()
         self.context = ToolExecutionContext(InMemoryPlanStore(), self.workdir)
 
     def _evaluate(self, tool_name: str, arguments: dict[str, str]):

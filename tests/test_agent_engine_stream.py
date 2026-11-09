@@ -8,7 +8,7 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
-from hexgent.events import (
+from mindweave_harness.events import (
     AgentLoopResult,
     CheckpointCommittedEvent,
     RunFinishedEvent,
@@ -19,13 +19,13 @@ from hexgent.events import (
     ToolStartedEvent,
     ToolExecutionCompletedEvent,
 )
-from hexgent.context import ContextManager
-from hexgent.session import Session
-from hexgent.plan import Plan, PlanStep
+from mindweave_harness.context import ContextManager
+from mindweave_harness.session import Session
+from mindweave_harness.plan import Plan, PlanStep
 
 
-agent_engine_module = import_module("hexgent.agent_engine")
-cli_module = import_module("hexgent.adapters.cli.main")
+agent_engine_module = import_module("mindweave_harness.agent_engine")
+cli_module = import_module("mindweave_harness.adapters.cli.main")
 
 
 class FakeTerminalIO:

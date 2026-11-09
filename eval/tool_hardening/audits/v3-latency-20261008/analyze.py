@@ -6,7 +6,7 @@ import json
 import re
 
 OUT = Path(__file__).resolve().parent
-ROOT = Path('/Users/hector/dev/hexgent')
+ROOT = Path('/Users/hector/dev/mindweave_harness')
 RUNS = ROOT / 'eval/tool_hardening/runs'
 SOURCES = {'ON': RUNS/'v3-on-off-replay-20261008-r1/smoke/tool_pipeline/1/ON',
            'OFF': RUNS/'v3-manual-20261008T135408Z/tool_pipeline/pair-1/OFF'}
@@ -28,7 +28,7 @@ def interval(a,b):
 data={}
 protected={}
 for side,path in SOURCES.items():
-    transcript=next((path/'workspace/.hexgent/sessions').glob('*/transcript.jsonl'))
+    transcript=next((path/'workspace/.mindweave_harness/sessions').glob('*/transcript.jsonl'))
     for p in (path/'artifact.json',path/'provider-calls.json',transcript):
         protected[str(p)]=sha256(p.read_bytes()).hexdigest()
     artifact=json.loads((path/'artifact.json').read_text())

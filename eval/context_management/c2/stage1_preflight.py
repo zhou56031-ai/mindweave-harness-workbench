@@ -12,7 +12,7 @@ from eval.context_management.c2_prep_3.prepare import ROOT, digest, snapshot, re
 from eval.context_management.c2_prep_3.runner import load_rounds, validate_capacity, policy
 from eval.context_management.c2_prep_3.budget import TokenBudget, TokenTrace
 from eval.context_management.c2_prep_3.test_gate import small_policy, REQUEST
-from hexgent.observation import RunObservation, current_observation, begin_span, end_span
+from mindweave_harness.observation import RunObservation, current_observation, begin_span, end_span
 
 
 def probe(output):

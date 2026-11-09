@@ -4,8 +4,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest import TestCase
-from hexgent.config import HexgentConfig
-from hexgent.memory import MemoryStore
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.memory import MemoryStore
 from eval.support.agent_contracts import FakeModel, text_response, tool_call
 from eval.memory_m2_real import CASES, RequestRecorder, execute_case
 
@@ -34,7 +34,7 @@ class MemoryM2RealTest(TestCase):
                 return SimpleNamespace(responses=FakeModel(responses), base_url="https://offline.invalid")
             for case in CASES:
                 with self.subTest(case=case["id"]):
-                    result = execute_case(root, HexgentConfig(), case, factory)
+                    result = execute_case(root, MindWeaveHarnessConfig(), case, factory)
                     self.assertEqual(result["status"], "PASS", result)
 
     def test_recorder_forwards_options_arguments_and_error(self):

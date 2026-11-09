@@ -9,8 +9,8 @@ import subprocess
 from .batch_v2 import IDS, fixture_paths
 from .offline import ROOT, fingerprints
 from .factorial_pilot import file_hashes
-from hexgent.context.context_compaction import _extract_summary
-from hexgent.context.key_fact_snapshot import validate_snapshot
+from mindweave_harness.context.context_compaction import _extract_summary
+from mindweave_harness.context.key_fact_snapshot import validate_snapshot
 
 OUT=ROOT/'eval/context_remediation_v1/runs/multiscenario-v2-20261012-v1'
 
@@ -30,7 +30,7 @@ def main():
         raw=json.loads(ex)
         valid=validate_snapshot(raw,cutpoint=payload['as_of_message_id'],sources=payload['history_prefix'],previous=None,budget_tokens=read(d/'config.json')['context']['key_fact_snapshot_tokens'])
         summary_valid=_extract_summary(summary) is not None
-        assert file_hashes(ROOT/'hexgent')==manifest['production_hashes']
+        assert file_hashes(ROOT/'mindweave_harness')==manifest['production_hashes']
         maps={m['fact_id']:m for m in audit['oracle_quote_mapping']}
         required=[f for f in oracle['facts'] if f['channel']=='SUMMARY_REQUIRED']
         case_j=[]
@@ -101,7 +101,7 @@ def main():
         interpretation='全体强制提交率20%不是线上失败率。12短样本不触发自然Production压缩；只能用于事实和保护性拒绝诊断。'))
     save('failure-records.json',[r for r in rows if r['status']!='COMPACTION_COMMITTED'])
     diff=subprocess.run(['git','diff','--check'],cwd=ROOT,capture_output=True,text=True)
-    assert fingerprints()==manifest['historical_assets'] and file_hashes(ROOT/'hexgent')==manifest['production_hashes']
+    assert fingerprints()==manifest['historical_assets'] and file_hashes(ROOT/'mindweave_harness')==manifest['production_hashes']
     save('review-integrity.json',dict(production_unchanged=True,historical_unchanged=True,raw_fixtures_oracles_unchanged=True,network_calls_during_review=0,
         total_actual_provider_calls=30,main_calls=0,git_diff_check=dict(exit_code=diff.returncode,output=diff.stdout+diff.stderr)))
     table='\n'.join(f"|{r['id']}|{r['status']}|{r['before_tokens']}→{r['published_after_tokens']}|{r['applied_reduction_pct']:.2f}%|{r['snapshot_retained']}/{r['prefix_eligible']}|{r['raw_summary_retained']}/{r['prefix_eligible']}|" for r in rows)

@@ -18,10 +18,10 @@ def main():
     if args.prepare:
         out.mkdir(exist_ok=False)
         (out/'before.json').write_text(json.dumps(dict(created_at=datetime.now(timezone.utc).isoformat(),historical_hashes=hashes(),
-            production_hashes={str(p.relative_to(ROOT)):sha256(p.read_bytes()).hexdigest() for p in (ROOT/'hexgent').rglob('*.py')}),indent=2))
+            production_hashes={str(p.relative_to(ROOT)):sha256(p.read_bytes()).hexdigest() for p in (ROOT/'mindweave_harness').rglob('*.py')}),indent=2))
         print('HISTORICAL_ASSETS_FROZEN');return
     before=json.loads((out/'before.json').read_text())
-    from hexgent.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS,EXTRACTION_PROMPT_VERSION
+    from mindweave_harness.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS,EXTRACTION_PROMPT_VERSION
     target=ROOT/'eval/context_remediation_v1/runs/extractor-quality-pilot-v1-20261012/requests/10.json'
     original=json.loads(target.read_text())['instructions']
     assert EXTRACTION_INSTRUCTIONS==original

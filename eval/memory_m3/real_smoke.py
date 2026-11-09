@@ -7,10 +7,10 @@ from pathlib import Path
 import re
 from urllib.parse import urlsplit
 
-from hexgent.agent_engine import AgentEngine
-from hexgent.client import get_client, get_model
-from hexgent.config import load_config
-from hexgent.observation import source_fingerprint
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.client import get_client, get_model
+from mindweave_harness.config import load_config
+from mindweave_harness.observation import source_fingerprint
 from eval.memory_m1 import dump, tree_hash
 from eval.memory_m2_real import RequestRecorder, run_stage
 from eval.memory_m3.audit_smoke import correlate

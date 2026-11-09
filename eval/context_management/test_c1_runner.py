@@ -11,7 +11,7 @@ from .c1_independent import Gate, hashes, save
 class C1RunnerRepairTests(unittest.TestCase):
     def test_c06_faults_remain_failed_until_the_actual_fuse_boundary(self):
         before = hashes()
-        with TemporaryDirectory(prefix="hexgent-c1-eval-repair-") as temp:
+        with TemporaryDirectory(prefix="mindweave_harness-c1-eval-repair-") as temp:
             root = Path(temp)
             gate = Gate(root)
             gate.directory = root / "C1-06"

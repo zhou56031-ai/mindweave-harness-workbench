@@ -4,7 +4,7 @@ from dataclasses import replace
 import json
 from pathlib import Path
 
-from hexgent.agent_engine import AgentEngine, RunRequest
+from mindweave_harness.agent_engine import AgentEngine, RunRequest
 from .harness import config, profile
 from .test_gate import Model
 from eval.context_management.c1_independent import response, plain
@@ -20,7 +20,7 @@ def main():
         cfg=replace(cfg,context=replace(cfg.context,proactive_threshold_tokens=args.scaled_threshold,
             recent_context_tokens=100,reactive_recent_context_tokens=100,
             min_compaction_savings_tokens=1,min_compaction_savings_ratio=.001))
-    transcript=root/'.hexgent/sessions'/args.session/'transcript.jsonl'
+    transcript=root/'.mindweave_harness/sessions'/args.session/'transcript.jsonl'
     pre_restore_transcript=[json.loads(line) for line in transcript.read_text().splitlines()]
     engine=AgentEngine.restore(cfg,root,args.session)
     before=engine.session.store.read_transcript();client=Model([response('离线Continue链路完成；不是采购任务成功证据')])

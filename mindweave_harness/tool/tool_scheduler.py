@@ -1,0 +1,840 @@
+"""工具批次的分组、并行调度、顺序提交与结果持久化。"""
+
+from __future__ import annotations
+
+from collections.abc import Generator
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
+from dataclasses import asdict, dataclass, replace
+from time import monotonic
+from typing import TYPE_CHECKING, Any
+
+from mindweave_harness.session import (
+    PersistedToolResult,
+    SessionStore,
+    build_persisted_output_message,
+)
+from mindweave_harness.utils.token_estimator import estimate_value_tokens
+
+from .tool_context import ToolCallCacheEntry, ToolExecutionContext
+from .tool_execution import (
+    PreparedToolCall,
+    UserConfirmation,
+    _deduplicated_result,
+    _prepare_tool_call,
+)
+from .tool_registry import get_tool
+from .tool_result import ToolExecutionResult, ToolFailure
+from .tool_retry import ToolRetryLimits
+from .tool_permission_pipeline import PermissionContext
+from mindweave_harness.run_control import InterruptController, ToolDispatchGate
+from mindweave_harness.observation import begin_span, end_span
+
+if TYPE_CHECKING:
+    from mindweave_harness.events import AgentEvent
+
+
+@dataclass(frozen=True)
+class ToolParallelLimits:
+    """并行工具批次使用的运行配置。"""
+
+    # 是否允许声明为并行安全的相邻工具并发执行。
+    enabled: bool = True
+
+    # 单个并行批次最多同时运行的工具数量。
+    max_workers: int = 4
+
+    # 单个并行批次从提交开始允许等待的最长秒数。
+    batch_timeout_seconds: float = 60.0
+
+
+@dataclass(frozen=True)
+class ToolBatchResult:
+    """完整工具批次产生的配对结果和预算计数。"""
+
+    # 按模型调用顺序生成的 function_call_output 列表。
+    outputs: list[dict[str, str]]
+
+    # 本批次计入工具预算的真实执行和去重调用数量。
+    budgeted_call_count: int
+
+    # 已完成调用的结构化结果，供 Loop 根据成功工具结果构造下一状态。
+    completed_calls: tuple["CompletedToolCall", ...] = ()
+
+
+@dataclass(frozen=True)
+class CompletedToolCall:
+    """一个已完成工具调用的最小控制流结果。"""
+
+    # 模型本次调用提供的稳定标识。
+    call_id: str
+    # 已通过注册表查找的工具名称。
+    tool_name: str
+    # 完整执行管线后的结构化结果。
+    result: ToolExecutionResult
+
+
+@dataclass(frozen=True)
+class ToolCallGroup:
+    """保持模型原始顺序的一组连续工具调用。"""
+
+    # 当前分组是否允许使用线程池并行执行。
+    concurrency_safe: bool
+
+    # 当前分组包含的连续原始工具调用。
+    calls: list[Any]
+
+
+@dataclass
+class ScheduledToolCall:
+    """已经完成主线程调度、等待执行或提交结果的调用。"""
+
+    # 模型返回的原始工具调用对象。
+    tool_call: Any
+
+    # 提供给 UI 和 Transcript 的安全调用摘要。
+    description: str
+
+    # 参数权限检查成功后等待执行的调用；无需执行时为空。
+    prepared: PreparedToolCall | None = None
+
+    # 参数拒绝、去重或真实执行后得到的结果。
+    result: ToolExecutionResult | None = None
+
+    # 因工具次数或运行时间预算不足而跳过的原因。
+    skipped_message: str | None = None
+
+    # 当前并行组内相同精确调用首次使用的调用标识。
+    pending_duplicate_source_call_id: str | None = None
+
+
+def partition_tool_calls(tool_calls: list[Any]) -> list[ToolCallGroup]:
+    """合并相邻安全调用，并让每个不安全调用形成顺序屏障。"""
+    groups: list[ToolCallGroup] = []
+    for tool_call in tool_calls:
+        tool = get_tool(tool_call.name)
+        concurrency_safe = tool is not None and tool.concurrency_safe
+        if concurrency_safe and groups and groups[-1].concurrency_safe:
+            groups[-1].calls.append(tool_call)
+            continue
+        groups.append(ToolCallGroup(concurrency_safe, [tool_call]))
+    return groups
+
+
+def _budget_tool_result(call_id: str, message: str) -> dict[str, str]:
+    """为因预算不足而未执行的工具调用创建配对结果。"""
+    return {
+        "type": "function_call_output",
+        "call_id": call_id,
+        "output": f"错误：{message}，本次工具调用未执行",
+    }
+
+
+def _interrupted_tool_result(*, steering: bool = False) -> ToolExecutionResult:
+    """为尚未开始的工具构造可与 Tool Call 配对的中断结果。"""
+    message = "当前工具批次因纠偏让位，本次调用未执行" if steering else "当前 Run 已被中断，本次工具调用未执行"
+    return ToolExecutionResult(
+        "error",
+        f"错误：{message}",
+        True,
+        failure=ToolFailure(
+            "steering_interrupted" if steering else "execution_interrupted",
+            "scheduling",
+            message,
+            side_effect_state="not_started",
+        ),
+        attempt_count=0,
+    )
+
+
+def _truncate_to_token_budget(text: str, token_budget: int) -> str:
+    """在估算 Token 预算内保留文本开头。"""
+    if token_budget <= 0:
+        return ""
+    if estimate_value_tokens(text) <= token_budget:
+        return text
+    low, high = 0, len(text)
+    while low < high:
+        middle = (low + high + 1) // 2
+        if estimate_value_tokens(text[:middle]) <= token_budget:
+            low = middle
+        else:
+            high = middle - 1
+    return text[:low]
+
+
+def _apply_batch_result_budget(
+    outputs: list[dict[str, str]],
+    inline_results: list[tuple[int, str, str, str, str]],
+    persisted_results: dict[int, PersistedToolResult],
+    session_store: SessionStore | None,
+    context: ToolExecutionContext,
+) -> None:
+    """从最大结果开始外置，并限制全部外置预览的总量。"""
+    if session_store is None:
+        return
+    limits = session_store.tool_result_limits
+
+    # 1. 超过批次内联预算时持续外置当前最大的完整结果。
+    remaining = list(inline_results)
+    total_inline_tokens = sum(
+        estimate_value_tokens(output) for _, _, _, output, _ in remaining
+    )
+    while remaining and total_inline_tokens > limits.max_batch_inline_tokens:
+        largest = max(remaining, key=lambda item: estimate_value_tokens(item[3]))
+        remaining.remove(largest)
+        output_index, call_id, tool_name, raw_output, description = largest
+        persisted = session_store.persist_tool_result(
+            call_id,
+            tool_name,
+            raw_output,
+            force=True,
+            description=description,
+        )
+        if persisted is None:
+            raise RuntimeError("工具结果批次预算要求外置，但未生成持久化结果")
+        persisted_results[output_index] = persisted
+        context.clear_tool_caches()
+        total_inline_tokens -= estimate_value_tokens(raw_output)
+
+    # 2. 在外置结果之间平均分配预览预算，并更新模型可见结果。
+    if not persisted_results:
+        return
+    preview_budget = max(
+        1, limits.max_batch_preview_tokens // len(persisted_results)
+    )
+    for output_index, persisted in persisted_results.items():
+        preview = _truncate_to_token_budget(persisted.preview, preview_budget)
+        outputs[output_index]["output"] = build_persisted_output_message(
+            replace(persisted, preview=preview)
+        )
+
+
+def _run_scheduled_call(
+    item: ScheduledToolCall,
+    context: ToolExecutionContext,
+    user_confirmation: UserConfirmation,
+    retry_limits: ToolRetryLimits,
+    permission_context: PermissionContext | None,
+    dispatch_gate: ToolDispatchGate | None = None,
+    session_store: SessionStore | None = None,
+    admission_deadline: float | None = None,
+) -> ToolExecutionResult:
+    """执行一个已经完成主线程准备的工具调用。"""
+    # 惰性取用执行函数，既避免模块循环，也保留测试替换执行入口的能力。
+    from . import tool_execution
+
+    def admit(attempt: int) -> bool | ToolExecutionResult:
+        if admission_deadline is not None and monotonic() >= admission_deadline:
+            return ToolExecutionResult("error", "错误：工具批次超时，本次 Handler 尝试未执行", True,
+                failure=ToolFailure("tool_timeout", "scheduling", "工具批次超时，本次 Handler 尝试未执行",
+                                    side_effect_state="not_started"), attempt_count=0)
+        def record():
+            if session_store is None:
+                return
+            if attempt == 1:
+                session_store.append_transcript("tool_execution_dispatched", {
+                    "call_id": item.tool_call.call_id, "tool_name": item.tool_call.name,
+                    "recovery_action": "safe_to_retry" if item.prepared.tool.interrupt_behavior == "cancel" else "verify_before_retry",
+                })
+            session_store.append_transcript("tool_handler_admitted", {
+                "call_id": item.tool_call.call_id, "tool_name": item.tool_call.name,
+                "attempt": attempt,
+            })
+        assert dispatch_gate is not None
+        return dispatch_gate.claim(record)
+
+    return tool_execution.execute_tool_call(
+        item.tool_call.name,
+        item.tool_call.arguments,
+        context=context,
+        user_confirmation=user_confirmation,
+        call_id=item.tool_call.call_id,
+        prepared_call=item.prepared,
+        retry_limits=retry_limits,
+        permission_context=permission_context,
+        **({"dispatch_guard": admit} if dispatch_gate is not None else {}),
+    )
+
+
+def _execute_scheduled_group(
+    scheduled_calls: list[ScheduledToolCall],
+    *,
+    concurrency_safe: bool,
+    context: ToolExecutionContext,
+    user_confirmation: UserConfirmation,
+    limits: ToolParallelLimits,
+    retry_limits: ToolRetryLimits,
+    permission_context: PermissionContext | None,
+    interrupt_controller: InterruptController | None,
+    dispatch_gate: ToolDispatchGate | None = None,
+    session_store: SessionStore | None = None,
+) -> Generator[AgentEvent, None, tuple[bool, float]]:
+    """执行连续分组，并立即发送并行工具的真实完成事件。"""
+    from mindweave_harness.events import ToolExecutionCompletedEvent
+
+    executable = [
+        item
+        for item in scheduled_calls
+        if item.prepared is not None
+        and item.pending_duplicate_source_call_id is None
+    ]
+    if not executable:
+        return False, 0.0
+
+    started_at = monotonic()
+    run_in_parallel = limits.enabled and concurrency_safe and len(executable) > 1
+    if not run_in_parallel:
+        for item in executable:
+            item.result = _run_scheduled_call(
+                item,
+                context,
+                user_confirmation,
+                retry_limits,
+                permission_context,
+                dispatch_gate,
+                session_store,
+            )
+        return False, monotonic() - started_at
+
+    # 1. 将安全调用提交到有界线程池，权限确认已经在主线程完成。
+    worker_count = min(limits.max_workers, len(executable))
+    executor = ThreadPoolExecutor(
+        max_workers=worker_count,
+        thread_name_prefix="mindweave_harness-tool",
+    )
+    future_to_item: dict[Future[ToolExecutionResult], ScheduledToolCall] = {
+        executor.submit(
+            _run_scheduled_call,
+            item,
+            context,
+            user_confirmation,
+            retry_limits,
+            permission_context,
+            dispatch_gate,
+            session_store,
+            started_at + limits.batch_timeout_seconds,
+        ): item
+        for item in executable
+    }
+
+    # 2. 按真实完成顺序取得 Future；短轮询让 Pause/Cancel 能及时终止只读工具。
+    timed_out = False
+    interrupted_without_wait = False
+    pending = set(future_to_item)
+    try:
+        while pending:
+            if dispatch_gate is not None and interrupt_controller is not None and interrupt_controller.interrupted:
+                # 仅取消尚未开始的 Future；已经准入的 Handler 必须返回后再交接新 Query。
+                cancelled = {future for future in pending if future.cancel()}
+                for future in cancelled:
+                    item = future_to_item[future]
+                    item.result = _interrupted_tool_result(steering=dispatch_gate.steering_requested)
+                    yield ToolExecutionCompletedEvent(item.tool_call.name, item.tool_call.call_id, item.result.status)
+                pending.difference_update(cancelled)
+                if not pending:
+                    break
+            if (
+                dispatch_gate is None
+                and
+                interrupt_controller is not None
+                and interrupt_controller.interrupted
+            ):
+                # 只读工具允许放弃尚未完成的结果；运行中的 Python 线程不能强杀，
+                # 但其结果不再提交，Run 可在配对 interrupted 结果后立即收束。
+                cancellable = {
+                    future
+                    for future in pending
+                    if get_tool(future_to_item[future].tool_call.name) is not None
+                    and get_tool(
+                        future_to_item[future].tool_call.name
+                    ).interrupt_behavior == "cancel"
+                }
+                for future in cancellable:
+                    item = future_to_item[future]
+                    future.cancel()
+                    item.result = _interrupted_tool_result()
+                    yield ToolExecutionCompletedEvent(
+                        item.tool_call.name,
+                        item.tool_call.call_id,
+                        item.result.status,
+                    )
+                pending.difference_update(cancellable)
+                interrupted_without_wait = interrupted_without_wait or bool(cancellable)
+                if not pending:
+                    break
+
+            remaining = limits.batch_timeout_seconds - (monotonic() - started_at)
+            if remaining <= 0:
+                if dispatch_gate is not None:
+                    # 不把尚在运行的线程伪装成已停止；记录超时并保守等待其结果。
+                    if not timed_out and session_store is not None:
+                        session_store.append_transcript("tool_batch_settlement_wait", {
+                            "call_ids": [future_to_item[f].tool_call.call_id for f in pending],
+                            "reason": "batch_timeout_in_flight", "timeout_seconds": limits.batch_timeout_seconds,
+                        })
+                    timed_out = True
+                    remaining = 0.05
+                else:
+                    timed_out = True
+                    break
+            completed, pending = wait(
+                pending,
+                timeout=min(0.05, remaining),
+                return_when=FIRST_COMPLETED,
+            )
+            for future in completed:
+                item = future_to_item[future]
+                try:
+                    item.result = future.result()
+                except Exception as error:
+                    if dispatch_gate is not None:
+                        # Handler 异常由执行器归一；闸门/持久化异常必须停止，不能伪装业务失败。
+                        raise
+                    item.result = ToolExecutionResult(
+                        "error",
+                        f"错误：并行工具执行失败：{error}",
+                        True,
+                        failure=ToolFailure(
+                            "tool_internal_error",
+                            "scheduling",
+                            f"并行工具执行失败：{error}",
+                        ),
+                    )
+                yield ToolExecutionCompletedEvent(
+                    item.tool_call.name,
+                    item.tool_call.call_id,
+                    item.result.status,
+                )
+    except BaseException:
+        # 生成器被调用方提前关闭或发生异常时，也不能遗留尚未启动的 Future。
+        if dispatch_gate is not None:
+            dispatch_gate.close()
+        executor.shutdown(wait=dispatch_gate is not None, cancel_futures=True)
+        raise
+
+    # 3. 超时调用按原顺序获得配对错误；已运行线程不再阻塞等待。
+    if timed_out and dispatch_gate is None:
+        for future, item in future_to_item.items():
+            if item.result is not None:
+                continue
+            item.result = ToolExecutionResult(
+                "error",
+                f"错误：并行工具批次超过 {limits.batch_timeout_seconds:g} 秒限制",
+                True,
+                failure=ToolFailure(
+                    "tool_timeout",
+                    "scheduling",
+                    f"并行工具批次超过 {limits.batch_timeout_seconds:g} 秒限制",
+                ),
+            )
+            future.cancel()
+            yield ToolExecutionCompletedEvent(
+                item.tool_call.name,
+                item.tool_call.call_id,
+                item.result.status,
+            )
+    executor.shutdown(
+        wait=not timed_out and not interrupted_without_wait,
+        cancel_futures=timed_out or interrupted_without_wait,
+    )
+    return True, monotonic() - started_at
+
+
+def _status_counts(
+    scheduled_calls: list[ScheduledToolCall],
+) -> tuple[int, int, int]:
+    """统计并行批次的成功、失败和未执行数量。"""
+    succeeded = sum(
+        item.result is not None
+        and item.result.status in {"success", "deduplicated"}
+        and not item.result.is_error
+        for item in scheduled_calls
+    )
+    skipped = sum(item.skipped_message is not None for item in scheduled_calls)
+    failed = len(scheduled_calls) - succeeded - skipped
+    return succeeded, failed, skipped
+
+
+def execute_tool_batch(
+    tool_calls: list[Any],
+    *,
+    context: ToolExecutionContext,
+    user_confirmation: UserConfirmation,
+    remaining_tool_calls: int | None,
+    deadline: float | None,
+    session_store: SessionStore | None = None,
+    parallel_limits: ToolParallelLimits | None = None,
+    retry_limits: ToolRetryLimits | None = None,
+    permission_context: PermissionContext | None = None,
+    interrupt_controller: InterruptController | None = None,
+    dispatch_gate: ToolDispatchGate | None = None,
+) -> Generator[AgentEvent, None, ToolBatchResult]:
+    """调度完整工具批次，并保证每个调用都有配对结果。"""
+    from mindweave_harness.events import (
+        PlanCreatedEvent,
+        PlanUpdatedEvent,
+        ToolBatchFinishedEvent,
+        ToolBatchStartedEvent,
+        ToolFinishedEvent,
+        ToolStartedEvent,
+    )
+
+    # 1. 初始化批次状态，并按相邻安全性划分执行分组。
+    limits = parallel_limits or ToolParallelLimits()
+    active_retry_limits = retry_limits or ToolRetryLimits()
+    outputs: list[dict[str, str]] = []
+    inline_results: list[tuple[int, str, str, str, str]] = []
+    persisted_results: dict[int, PersistedToolResult] = {}
+    completed_calls: list[CompletedToolCall] = []
+    budgeted_call_count = 0
+    limit_message: str | None = None
+
+    for batch_index, group in enumerate(partition_tool_calls(tool_calls), start=1):
+        scheduled_calls: list[ScheduledToolCall] = []
+        pending_fingerprints: dict[str, str] = {}
+        reserved_budget_count = 0
+
+        # 2. 主线程依次完成事件、参数、权限、去重和预算准备。
+        for tool_call in group.calls:
+            registered_tool = get_tool(tool_call.name)
+            description = (
+                registered_tool.describe(tool_call.arguments)
+                if registered_tool is not None
+                else f"{tool_call.name}()"
+            )
+            yield ToolStartedEvent(tool_call.name, tool_call.call_id, description)
+            if session_store is not None:
+                session_store.append_transcript(
+                    "tool_execution_started",
+                    {
+                        "call_id": tool_call.call_id,
+                        "tool_name": tool_call.name,
+                        "arguments": tool_call.arguments,
+                        "description": description,
+                        "recovery_action": (
+                            "safe_to_retry"
+                            if registered_tool is not None
+                            and registered_tool.interrupt_behavior == "cancel"
+                            else "verify_before_retry"
+                        ),
+                    },
+                )
+            if limit_message is None:
+                if (
+                    remaining_tool_calls is not None
+                    and budgeted_call_count + reserved_budget_count
+                    >= remaining_tool_calls
+                ):
+                    limit_message = "本轮工具执行次数已达到上限"
+                elif deadline is not None and monotonic() >= deadline:
+                    limit_message = "本轮执行时间已达到上限"
+
+            scheduled = ScheduledToolCall(tool_call, description)
+            if (
+                interrupt_controller is not None
+                and interrupt_controller.interrupted
+            ):
+                scheduled.result = _interrupted_tool_result(steering=dispatch_gate is not None and dispatch_gate.steering_requested)
+            elif limit_message is not None:
+                scheduled.skipped_message = limit_message
+            else:
+                prepared = _prepare_tool_call(
+                    tool_call.name,
+                    tool_call.arguments,
+                    context=context,
+                    user_confirmation=user_confirmation,
+                    call_id=tool_call.call_id,
+                    permission_context=permission_context,
+                    permission_event_recorder=(
+                        session_store.append_transcript
+                        if session_store is not None
+                        else None
+                    ),
+                )
+                if isinstance(prepared, ToolExecutionResult):
+                    scheduled.result = prepared
+                    if prepared.status == "deduplicated":
+                        reserved_budget_count += 1
+                else:
+                    if (
+                        prepared.fingerprint is not None
+                        and prepared.fingerprint in pending_fingerprints
+                    ):
+                        scheduled.prepared = prepared
+                        scheduled.pending_duplicate_source_call_id = (
+                            pending_fingerprints[prepared.fingerprint]
+                        )
+                    else:
+                        scheduled.prepared = prepared
+                        if prepared.fingerprint is not None:
+                            pending_fingerprints[prepared.fingerprint] = (
+                                tool_call.call_id
+                            )
+                    reserved_budget_count += 1
+            scheduled_calls.append(scheduled)
+
+        # 3. 仅为至少两个可执行的安全调用发送并行批次事件。
+        executable_count = sum(
+            item.prepared is not None
+            and item.pending_duplicate_source_call_id is None
+            for item in scheduled_calls
+        )
+        is_parallel = limits.enabled and group.concurrency_safe and executable_count > 1
+        batch_id = f"tool-batch-{batch_index}"
+        if is_parallel:
+            yield ToolBatchStartedEvent(
+                batch_id,
+                executable_count,
+                min(limits.max_workers, executable_count),
+            )
+        # 3. 在提交线程或同步执行前持久化派发边界；进程崩溃后不能猜测副作用。
+        if session_store is not None and dispatch_gate is None:
+            for scheduled in scheduled_calls:
+                if (
+                    scheduled.prepared is None
+                    or scheduled.pending_duplicate_source_call_id is not None
+                ):
+                    continue
+                session_store.append_transcript(
+                    "tool_execution_dispatched",
+                    {
+                        "call_id": scheduled.tool_call.call_id,
+                        "tool_name": scheduled.tool_call.name,
+                        "recovery_action": (
+                            "safe_to_retry"
+                            if get_tool(scheduled.tool_call.name) is not None
+                            and get_tool(scheduled.tool_call.name).interrupt_behavior
+                            == "cancel"
+                            else "verify_before_retry"
+                        ),
+                    },
+                )
+        observed_batch = begin_span("tool_batch", observer=context.observation,
+                                    batch_id=batch_id, parallel=is_parallel,
+                                    call_ids=[item.tool_call.call_id for item in scheduled_calls])
+        batch_status = "INTERRUPTED"
+        try:
+            _, elapsed_seconds = yield from _execute_scheduled_group(
+                scheduled_calls,
+                concurrency_safe=group.concurrency_safe,
+                context=context,
+                user_confirmation=user_confirmation,
+                limits=limits,
+                retry_limits=active_retry_limits,
+                permission_context=permission_context,
+                interrupt_controller=interrupt_controller,
+                dispatch_gate=dispatch_gate,
+                session_store=session_store,
+            )
+            batch_status = "RETURNED"
+        finally:
+            end_span(observed_batch, status=batch_status)
+
+        # 4. 首次调用成功后生成组内重复结果；失败时重新真实执行。
+        for scheduled in scheduled_calls:
+            source_call_id = scheduled.pending_duplicate_source_call_id
+            if source_call_id is None:
+                continue
+            if dispatch_gate is not None and interrupt_controller is not None and interrupt_controller.interrupted:
+                scheduled.result = _interrupted_tool_result(steering=dispatch_gate.steering_requested)
+                continue
+            assert scheduled.prepared is not None
+            source = next(
+                item
+                for item in scheduled_calls
+                if item.tool_call.call_id == source_call_id
+            )
+            if source.result is not None and source.result.status == "success":
+                assert scheduled.prepared.fingerprint is not None
+                scheduled.result = _deduplicated_result(
+                    scheduled.prepared.fingerprint,
+                    ToolCallCacheEntry(source_call_id, source.result.output),
+                    context,
+                )
+            else:
+                if session_store is not None and dispatch_gate is None:
+                    session_store.append_transcript(
+                        "tool_execution_dispatched",
+                        {
+                            "call_id": scheduled.tool_call.call_id,
+                            "tool_name": scheduled.tool_call.name,
+                            "recovery_action": "verify_before_retry",
+                        },
+                    )
+                scheduled.result = _run_scheduled_call(
+                    scheduled,
+                    context,
+                    user_confirmation,
+                    active_retry_limits,
+                    permission_context,
+                    dispatch_gate,
+                    session_store,
+                )
+
+        # 5. 按模型原始顺序持久化、发事件并构造配对结果。
+        for scheduled in scheduled_calls:
+            tool_call = scheduled.tool_call
+            if scheduled.skipped_message is not None:
+                outputs.append(
+                    _budget_tool_result(
+                        tool_call.call_id, scheduled.skipped_message
+                    )
+                )
+                yield ToolFinishedEvent(
+                    tool_call.name, tool_call.call_id, "skipped"
+                )
+                if session_store is not None:
+                    session_store.append_transcript(
+                        "tool_execution_finished",
+                        {
+                            "call_id": tool_call.call_id,
+                            "tool_name": tool_call.name,
+                            "status": "skipped",
+                            "output": scheduled.skipped_message,
+                        },
+                    )
+                continue
+
+            result = scheduled.result
+            if result is None:
+                raise RuntimeError("工具调度完成后缺少执行结果")
+            if result.status in {"success", "error", "deduplicated"} and not (
+                dispatch_gate is not None and result.failure is not None
+                and result.failure.phase == "scheduling" and result.failure.side_effect_state == "not_started"
+                and result.attempt_count == 0
+            ):
+                budgeted_call_count += 1
+
+            persisted: PersistedToolResult | None = None
+            model_output = result.output
+            if session_store is not None:
+                try:
+                    persisted = session_store.persist_tool_result(
+                        tool_call.call_id,
+                        tool_call.name,
+                        result.output,
+                        description=scheduled.description,
+                    )
+                    if persisted is not None:
+                        context.clear_tool_caches()
+                        model_output = build_persisted_output_message(persisted)
+                except OSError as error:
+                    context.clear_tool_caches()
+                    result = ToolExecutionResult(
+                        "error",
+                        f"错误：工具已经执行，但完整结果持久化失败：{error}",
+                        True,
+                        failure=ToolFailure(
+                            "output_persistence_failed",
+                            "persistence",
+                            f"工具已经执行，但完整结果持久化失败：{error}",
+                            side_effect_state="committed",
+                        ),
+                    )
+                    model_output = result.output
+                    scheduled.result = result
+
+            completed_calls.append(
+                CompletedToolCall(tool_call.call_id, tool_call.name, result)
+            )
+
+            outputs.append(
+                {
+                    "type": "function_call_output",
+                    "call_id": tool_call.call_id,
+                    "output": model_output,
+                }
+            )
+            output_index = len(outputs) - 1
+            if persisted is None:
+                inline_results.append(
+                    (
+                        output_index,
+                        tool_call.call_id,
+                        tool_call.name,
+                        result.output,
+                        scheduled.description,
+                    )
+                )
+            else:
+                persisted_results[output_index] = persisted
+            yield ToolFinishedEvent(
+                tool_call.name, tool_call.call_id, result.status
+            )
+            if session_store is not None:
+                session_store.append_transcript(
+                    "tool_execution_finished",
+                    {
+                        "call_id": tool_call.call_id,
+                        "tool_name": tool_call.name,
+                        "status": result.status,
+                        "output": result.output if persisted is None else None,
+                        "persisted_output": (
+                            persisted.relative_path if persisted is not None else None
+                        ),
+                        "source_call_id": result.source_call_id,
+                        "fingerprint": result.fingerprint,
+                        "failure": (
+                            asdict(result.failure)
+                            if result.failure is not None
+                            else None
+                        ),
+                        "attempt_count": result.attempt_count,
+                        "data": result.data,
+                    },
+                )
+
+            # 6. Plan 工具串行执行后投影已经生效的最新状态。
+            if tool_call.name == "create_plan" and result.status == "success":
+                plan = context.plan_store.get_plan()
+                if plan is not None:
+                    if session_store is not None:
+                        session_store.append_transcript(
+                            "plan_state_changed",
+                            {
+                                "action": "created",
+                                "reason": None,
+                                "plan": asdict(plan),
+                            },
+                        )
+                    yield PlanCreatedEvent(plan)
+            elif tool_call.name == "update_plan" and result.status == "success":
+                plan = context.plan_store.get_plan()
+                if plan is not None:
+                    if session_store is not None:
+                        session_store.append_transcript(
+                            "plan_state_changed",
+                            {
+                                "action": "updated",
+                                "reason": plan.last_replan_reason,
+                                "plan": asdict(plan),
+                            },
+                        )
+                    yield PlanUpdatedEvent(plan)
+
+        # 7. 所有单工具结束事件提交后，再发送并行批次汇总事件。
+        if is_parallel:
+            succeeded, failed, skipped = _status_counts(scheduled_calls)
+            yield ToolBatchFinishedEvent(
+                batch_id,
+                len(scheduled_calls),
+                succeeded,
+                failed,
+                skipped,
+                elapsed_seconds,
+            )
+
+    # 8. 批次全部完成后执行总结果预算，防止大量小结果撑爆上下文。
+    try:
+        _apply_batch_result_budget(
+            outputs,
+            inline_results,
+            persisted_results,
+            session_store,
+            context,
+        )
+    except OSError as error:
+        context.clear_tool_caches()
+        for output in outputs:
+            output["output"] = f"错误：工具结果批次持久化失败：{error}"
+    return ToolBatchResult(outputs, budgeted_call_count, tuple(completed_calls))

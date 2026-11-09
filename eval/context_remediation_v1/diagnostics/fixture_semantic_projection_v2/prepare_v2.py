@@ -204,7 +204,7 @@ def main():
     (out/"projection_contract_v2.md").write_text("""# Projection Fidelity V2 Contract\n\n先逐原句/原始证据审核，后规范化命题和来源桥接，再按证据决定新版答案，冻结后测试。\n业务核验动作与当前完成态不得由semantic_qualification推出。当前已撤销不等于过去动作没发生。\ncompleted不等于check_passed；next_condition不等于next_action；里程碑完成不等于任务整体完成。\n记录exists可由原文/结构化来源本身有该记录证明，不把它升级为业务核验事件。\n历史原始Fact/refs/source原文/cutoff不变，新模型只补命题与可追踪证据投影。原三层规则不放宽。\n所有语义维度和复合子命题须显式投影；证据缺乏也要保留义务，不删义务制造PASS。\n引用充分性与OracleRecall仍独立，UNKNOWN范围显式保留不默认判PASS。\n新版预期与旧版可不同，差异仅据原文/原始证据及新义务，测试后不改答案。\n自动模型检查不解析自然语言，最终需人工对照事实/证据/投影/预期/结果。\n""",encoding="utf-8")
     manifest=dict(experiment="FIXTURE-SEMANTIC-PROJECTION-V2",created_at=datetime.now(timezone.utc).isoformat(),
         original_49_cases=len(cases),new_a3_variants=len(variants),old_gate="REFERENCE_RULES_ADVERSARIAL_FAIL",
-        old_before=old_hashes,cross_before=cross_hashes,production_hashes={str(p.relative_to(ROOT)):sha256(p.read_bytes()).hexdigest() for p in sorted((ROOT/"hexgent").rglob("*.py"))},
+        old_before=old_hashes,cross_before=cross_hashes,production_hashes={str(p.relative_to(ROOT)):sha256(p.read_bytes()).hexdigest() for p in sorted((ROOT/"mindweave_harness").rglob("*.py"))},
         frozen_assets=fingerprints(),original_checker_sha256=sha256((old/"checker.py").read_bytes()).hexdigest(),
         frozen_files={str(p.relative_to(out)):sha256(p.read_bytes()).hexdigest() for p in out.rglob("*") if p.is_file() and "__pycache__" not in p.parts},
         network_calls=0,model_calls=0,expected_frozen_before_tests=True,formal_prompt_v3_created=False)

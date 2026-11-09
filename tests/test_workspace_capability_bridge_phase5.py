@@ -4,13 +4,13 @@ from threading import Barrier
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from hexgent.integration.capability import CapabilityResult
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.tool.tool_execution import execute_tool_call
-from hexgent.tool.tool_registry import get_tool
-from hexgent.tool.tool_execution import execute_tool_batch
-from hexgent.tool.tool_scheduler import ToolParallelLimits
-from hexgent.tool.workspace_capability_tool import invoke_workspace_capability
+from mindweave_harness.integration.capability import CapabilityResult
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.tool.tool_execution import execute_tool_call
+from mindweave_harness.tool.tool_registry import get_tool
+from mindweave_harness.tool.tool_execution import execute_tool_batch
+from mindweave_harness.tool.tool_scheduler import ToolParallelLimits
+from mindweave_harness.tool.workspace_capability_tool import invoke_workspace_capability
 
 
 class _PlanStore:
@@ -35,8 +35,8 @@ class WorkspaceCapabilityBridgePhase5Test(unittest.TestCase):
         calls = [SimpleNamespace(call_id=f'call-{i}', name='get_document',
                  arguments=json.dumps(dict(documentId=i, versionId=i + 10,
                                            startLine=1, lineCount=200))) for i in (1, 2)]
-        with patch('hexgent.tool.workspace_capability_tool.invoke_workspace_capability', side_effect=bridge), \
-             patch('hexgent.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke', side_effect=invoke):
+        with patch('mindweave_harness.tool.workspace_capability_tool.invoke_workspace_capability', side_effect=bridge), \
+             patch('mindweave_harness.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke', side_effect=invoke):
             generator = execute_tool_batch(calls, context=context,
                 user_confirmation=lambda _tool, _message: 'allow',
                 parallel_limits=ToolParallelLimits(enabled=True, max_workers=2),
@@ -65,7 +65,7 @@ class WorkspaceCapabilityBridgePhase5Test(unittest.TestCase):
         }))
         return context
 
-    @patch("hexgent.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
+    @patch("mindweave_harness.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
     def test_existing_tool_pipeline_propagates_run_and_call_and_maps_success(self, invoke):
         invoke.return_value = CapabilityResult("v1", "ws-run", "call-1", "SUCCEEDED", {"ok": True})
         result = execute_tool_call(
@@ -76,7 +76,7 @@ class WorkspaceCapabilityBridgePhase5Test(unittest.TestCase):
         self.assertEqual("success", result.status)
         invoke.assert_called_once_with("ws-run", "call-1", "phase5_echo", {"message": "hi"})
 
-    @patch("hexgent.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
+    @patch("mindweave_harness.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
     def test_denied_and_failed_are_model_visible_tool_results(self, invoke):
         invoke.return_value = CapabilityResult("v1", "ws-run", "call-1", "DENIED",
                                                error_code="CAPABILITY_NOT_ALLOWED", error_message="denied")
@@ -111,7 +111,7 @@ class WorkspaceCapabilityBridgePhase5Test(unittest.TestCase):
         self.assertEqual("D404", not_found.failure.code)
         self.assertFalse(not_found.failure.retryable)
 
-    @patch("hexgent.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
+    @patch("mindweave_harness.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
     def test_search_workspace_uses_existing_capability_pipeline(self, invoke):
         invoke.return_value = CapabilityResult(
             "v1", "ws-run", "call-1", "SUCCEEDED", {"items": [{"content": "命中"}]}
@@ -126,7 +126,7 @@ class WorkspaceCapabilityBridgePhase5Test(unittest.TestCase):
             "ws-run", "call-1", "search_workspace", {"query": "检索内容", "topK": 5}
         )
 
-    @patch("hexgent.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
+    @patch("mindweave_harness.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
     def test_get_document_uses_exact_identity_and_range(self, invoke):
         invoke.return_value = CapabilityResult(
             "v1", "ws-run", "call-1", "SUCCEEDED", {"content": "指定版本内容"}
@@ -144,7 +144,7 @@ class WorkspaceCapabilityBridgePhase5Test(unittest.TestCase):
             {"documentId": 11, "versionId": 3, "startLine": 2, "lineCount": 20},
         )
 
-    @patch("hexgent.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
+    @patch("mindweave_harness.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
     def test_list_folder_uses_root_and_preserves_identity(self, invoke):
         invoke.return_value = CapabilityResult(
             "v1", "ws-run", "call-1", "SUCCEEDED", {"items": []}

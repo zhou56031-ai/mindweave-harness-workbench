@@ -6,15 +6,15 @@ from pathlib import Path
 import shutil
 from unittest.mock import patch
 
-from hexgent.config import load_config
-from hexgent.context.context_compaction import CompactionOutcome
-from hexgent.context.context_builder import build_context_details
-from hexgent.loop.loop_state import LoopState
-from hexgent.loop.agent_turn import _available_tools_for_state
-from hexgent.tool.tool_permission_pipeline import PermissionRule, DENY_RULES
-from hexgent.tool.tool_registry import TOOL_REGISTRY
-from hexgent.utils.token_estimator import estimate_request_tokens
-from hexgent.events import CheckpointCommittedEvent
+from mindweave_harness.config import load_config
+from mindweave_harness.context.context_compaction import CompactionOutcome
+from mindweave_harness.context.context_builder import build_context_details
+from mindweave_harness.loop.loop_state import LoopState
+from mindweave_harness.loop.agent_turn import _available_tools_for_state
+from mindweave_harness.tool.tool_permission_pipeline import PermissionRule, DENY_RULES
+from mindweave_harness.tool.tool_registry import TOOL_REGISTRY
+from mindweave_harness.utils.token_estimator import estimate_request_tokens
+from mindweave_harness.events import CheckpointCommittedEvent
 
 ALLOWED={'read_file','glob','list_directory','write_file','edit_file','create_plan','update_plan'}
 FIXTURE=Path(__file__).parent/'fixtures/vendor-review'
@@ -33,7 +33,7 @@ def policy_violation(args,context):
     root=context.workdir.resolve();target=Path(value).expanduser()
     if not target.is_absolute():target=root/target
     target=target.resolve()
-    return not target.is_relative_to(root) or '.hexgent' in target.relative_to(root).parts
+    return not target.is_relative_to(root) or '.mindweave_harness' in target.relative_to(root).parts
 
 def illegal_write(args,context):
     if policy_violation(args,context):return True
@@ -54,11 +54,11 @@ def compaction_off(manager,client,model,instructions,tools,limits,*,force=False,
 def profile(variant):
     """仅在独立工作进程使用；同进程不得并行ON/OFF。"""
     if variant not in {'ON','OFF'}:raise ValueError('未知variant')
-    import hexgent.loop.agent_turn as turn
+    import mindweave_harness.loop.agent_turn as turn
     rules=(PermissionRule('eval_tool_not_allowed','deny',tuple(sorted(set(TOOL_REGISTRY)-ALLOWED)),lambda a,c:True,lambda a,c:'此任务不允许该工具'),
         PermissionRule('eval_fixture_boundary','deny',('read_file','glob','list_directory'),policy_violation,lambda a,c:'禁止访问工作区外或Runtime工件'),
         PermissionRule('eval_inputs_readonly','deny',('write_file','edit_file'),illegal_write,lambda a,c:'仅outputs目录允许写入'))
-    with patch('hexgent.tool.tool_permission_pipeline.DENY_RULES',rules+DENY_RULES),patch.object(turn,'TOOLS',[t for t in turn.TOOLS if t['name'] in ALLOWED]):
+    with patch('mindweave_harness.tool.tool_permission_pipeline.DENY_RULES',rules+DENY_RULES),patch.object(turn,'TOOLS',[t for t in turn.TOOLS if t['name'] in ALLOWED]):
         if variant=='OFF':
             with patch.object(turn,'compact_context_if_needed',compaction_off):yield
         else:yield

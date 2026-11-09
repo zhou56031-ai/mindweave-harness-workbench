@@ -1,0 +1,95 @@
+{
+  "mode": "prune",
+  "rows": [
+    {
+      "scenario": "tool_heavy",
+      "status": "pruned",
+      "before": 28025,
+      "after": 7106,
+      "ratio": 74.6,
+      "model_calls": 0,
+      "compaction_input_tokens": 0,
+      "duration_ms": 7.1,
+      "constraint_kept": null,
+      "events": [
+        "ContextCompactionStartedEvent",
+        "ContextCompactionFinishedEvent"
+      ]
+    },
+    {
+      "scenario": "mixed",
+      "status": "compacted",
+      "before": 24971,
+      "after": 2264,
+      "ratio": 90.9,
+      "model_calls": 2,
+      "compaction_input_tokens": 35876,
+      "duration_ms": 8.3,
+      "constraint_kept": null,
+      "events": [
+        "ContextCompactionStartedEvent",
+        "ContextCompactionFinishedEvent"
+      ]
+    },
+    {
+      "scenario": "small_outputs",
+      "status": "compacted",
+      "before": 13631,
+      "after": 3018,
+      "ratio": 77.9,
+      "model_calls": 2,
+      "compaction_input_tokens": 22910,
+      "duration_ms": 11.9,
+      "constraint_kept": null,
+      "events": [
+        "ContextCompactionStartedEvent",
+        "ContextCompactionFinishedEvent"
+      ]
+    },
+    {
+      "scenario": "with_plan",
+      "status": "pruned",
+      "before": 28025,
+      "after": 7106,
+      "ratio": 74.6,
+      "model_calls": 0,
+      "compaction_input_tokens": 0,
+      "duration_ms": 6.9,
+      "constraint_kept": null,
+      "events": [
+        "ContextCompactionStartedEvent",
+        "ContextCompactionFinishedEvent"
+      ]
+    },
+    {
+      "scenario": "constraint",
+      "status": "pruned",
+      "before": 28050,
+      "after": 7131,
+      "ratio": 74.6,
+      "model_calls": 0,
+      "compaction_input_tokens": 0,
+      "duration_ms": 6.7,
+      "constraint_kept": true,
+      "events": [
+        "ContextCompactionStartedEvent",
+        "ContextCompactionFinishedEvent"
+      ]
+    },
+    {
+      "scenario": "big_single",
+      "status": "pruned",
+      "before": 12598,
+      "after": 6773,
+      "ratio": 46.2,
+      "model_calls": 0,
+      "compaction_input_tokens": 0,
+      "duration_ms": 2.7,
+      "constraint_kept": null,
+      "events": [
+        "ContextCompactionStartedEvent",
+        "ContextCompactionFinishedEvent"
+      ]
+    }
+  ]
+}

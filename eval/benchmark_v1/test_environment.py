@@ -80,7 +80,7 @@ class EnvironmentOfflineTests(unittest.TestCase):
     def test_foreign_project_resource_blocks_cleanup(self):
         e=self.environment()
         self.docker.run.side_effect=['foreign-container', json.dumps([{'Config': {'Labels': {
-            'com.hexgent.benchmark.owner': 'other'}}}])]
+            'com.mindweave_harness.benchmark.owner': 'other'}}}])]
         with self.assertRaises(EnvironmentError): self.manager.destroy(e)
         self.assertFalse(e.destroyed)
 

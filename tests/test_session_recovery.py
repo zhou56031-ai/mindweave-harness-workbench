@@ -1,22 +1,22 @@
-"""验证 Transcript 可以恢复一个可继续运行的 Hexgent Core Session。"""
+"""验证 Transcript 可以恢复一个可继续运行的 MindWeave Harness Core Session。"""
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from hexgent.agent_engine import AgentEngine
-from hexgent.config import HexgentConfig
-from hexgent.context import ContextManager
-from hexgent.loop.loop_state import LoopState
-from hexgent.plan import Plan, PlanStep
-from hexgent.session import (
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.context import ContextManager
+from mindweave_harness.loop.loop_state import LoopState
+from mindweave_harness.plan import Plan, PlanStep
+from mindweave_harness.session import (
     Session,
     SessionRestorer,
     SessionSettings,
     build_persisted_output_message,
 )
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.plan import InMemoryPlanStore
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.plan import InMemoryPlanStore
 
 
 class SessionRecoveryTest(unittest.TestCase):
@@ -392,7 +392,7 @@ class SessionRecoveryTest(unittest.TestCase):
             session.record_plan_state(None, action="cleared", reason="completed")
 
             restored = AgentEngine.restore(
-                HexgentConfig(),
+                MindWeaveHarnessConfig(),
                 root,
                 session.store.session_id,
             )

@@ -11,16 +11,16 @@ import subprocess
 from time import monotonic
 from urllib.parse import urlsplit
 
-from hexgent.agent_engine import AgentEngine, RunRequest
-from hexgent.config import load_config
-from hexgent.context import ContextManager
-from hexgent.context.context_compaction import compact_context_if_needed, COMPACTION_INSTRUCTIONS
-from hexgent.context.context_builder import build_context_details
-from hexgent.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS, EXTRACTION_PROMPT_VERSION
-from hexgent.loop.agent_turn import _available_tools_for_state
-from hexgent.loop.loop_state import LoopState
-from hexgent.session.checkpoint import _context_snapshot
-from hexgent.utils.token_estimator import estimate_request_tokens
+from mindweave_harness.agent_engine import AgentEngine, RunRequest
+from mindweave_harness.config import load_config
+from mindweave_harness.context import ContextManager
+from mindweave_harness.context.context_compaction import compact_context_if_needed, COMPACTION_INSTRUCTIONS
+from mindweave_harness.context.context_builder import build_context_details
+from mindweave_harness.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS, EXTRACTION_PROMPT_VERSION
+from mindweave_harness.loop.agent_turn import _available_tools_for_state
+from mindweave_harness.loop.loop_state import LoopState
+from mindweave_harness.session.checkpoint import _context_snapshot
+from mindweave_harness.utils.token_estimator import estimate_request_tokens
 from .factorial_pilot import file_hashes
 from .historical_prompts import V2
 from .offline import ROOT, fingerprints
@@ -136,7 +136,7 @@ def run(out,wire,offline=False):
         instruction_budget=built.instruction_tokens,commit_boundary=commit,output_allowance=config.loop.max_output_tokens_per_round))
     save(out,'compaction-outcome.json',asdict(outcome))
     if outcome.status not in {'compacted','partial'}:raise ExperimentStop('COMPACTION_REJECTED: '+str(outcome.message))
-    from hexgent.loop.loop_state import RunStateSnapshot
+    from mindweave_harness.loop.loop_state import RunStateSnapshot
     resume=RunStateSnapshot.from_dict(outcome.boundary['resume_state'])
     next_state=LoopState.from_snapshot(resume,context_manager=manager,tool_context=engine.tool_context)
     cp=engine.session.create_checkpoint(context_manager=manager,plan=None,reason='context_compaction_completed',loop_state=next_state,run_status='active')
@@ -182,7 +182,7 @@ def main():
     out=args.output.resolve()
     if out.exists():raise RuntimeError('禁止覆盖或重跑已有E2E目录')
     out.mkdir(parents=True)
-    before=file_hashes(ROOT/'hexgent');frozen=fingerprints()
+    before=file_hashes(ROOT/'mindweave_harness');frozen=fingerprints()
     save(out,'manifest.json',dict(started_at=now(),mode='OFFLINE_GATE' if args.offline else 'REAL_SINGLE_ATTEMPT',production_hashes=before,frozen_hashes=frozen,
         max_calls=4,order=ORDER,production_default_prompt=EXTRACTION_PROMPT_VERSION,actual_extractor_prompt=EXTRACTION_PROMPT_VERSION,v2_sha256=sha256(V2.encode()).hexdigest(),
         capacity='USER_ASSERTED_CAPACITY_128K_UNVERIFIED',sampling='PROVIDER_DEFAULT_UNCHANGED',summary_attempts=1,hidden_retries=0,
@@ -191,7 +191,7 @@ def main():
     try:
         if args.offline:wire=OfflineWire()
         elif args.execute:
-            from hexgent.client import get_client,get_model
+            from mindweave_harness.client import get_client,get_model
             base=get_client();assert get_model()=='gpt-6.1-sol'
             assert urlsplit(str(base.base_url)).hostname in {'rightapi.ai','www.rightapi.ai'}
             wire=base.with_options(max_retries=0)
@@ -205,7 +205,7 @@ def main():
     save(out,'execution-result.json',dict(gate=gate,error=error,paid_calls=0 if args.offline else len(read(out/'provider-ledger.json')) if (out/'provider-ledger.json').exists() else 0,
         engineering='PASS' if gate in {'OFFLINE_ENGINEERING_PASS','AWAITING_INDEPENDENT_MAIN_QUALITY_REVIEW'} else 'INCOMPLETE_OR_FAILED',task_quality='NOT_EVALUABLE' if args.offline or error else 'REVIEW_PENDING'))
     diff=subprocess.run(['git','diff','--check'],cwd=ROOT,capture_output=True,text=True)
-    save(out,'integrity.json',dict(production_unchanged=before==file_hashes(ROOT/'hexgent'),frozen_unchanged=frozen==fingerprints(),git_diff_check=dict(exit_code=diff.returncode,output=diff.stdout+diff.stderr)))
+    save(out,'integrity.json',dict(production_unchanged=before==file_hashes(ROOT/'mindweave_harness'),frozen_unchanged=frozen==fingerprints(),git_diff_check=dict(exit_code=diff.returncode,output=diff.stdout+diff.stderr)))
     print(json.dumps(dict(output=str(out),gate=gate,error=error),ensure_ascii=False),flush=True)
 
 if __name__=='__main__':main()

@@ -12,21 +12,21 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from hexgent.session import (
+from mindweave_harness.session import (
     SessionStore,
     ToolResultLimits,
     build_persisted_output_message,
 )
-from hexgent.context import ContextManager
-from hexgent.session import Session, SessionSettings
-from hexgent.plan import InMemoryPlanStore, Plan, PlanStep
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.tool.tool_context import ReadFileCacheEntry, ReadFileCacheKey
-from hexgent.tool.tool_result import ToolExecutionResult
-from hexgent.tool.tool_execution import execute_tool_call
+from mindweave_harness.context import ContextManager
+from mindweave_harness.session import Session, SessionSettings
+from mindweave_harness.plan import InMemoryPlanStore, Plan, PlanStep
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.tool.tool_context import ReadFileCacheEntry, ReadFileCacheKey
+from mindweave_harness.tool.tool_result import ToolExecutionResult
+from mindweave_harness.tool.tool_execution import execute_tool_call
 
 
-tool_execution_module = import_module("hexgent.tool.tool_execution")
+tool_execution_module = import_module("mindweave_harness.tool.tool_execution")
 
 
 def drain_generator(generator):
@@ -75,7 +75,7 @@ class SessionStoreTest(unittest.TestCase):
             first.start_session("第一个会话")
             second = SessionStore(root, session_id="session-second")
             second.start_session("第二个会话")
-            old_dir = root / ".hexgent" / "sessions" / "session-old"
+            old_dir = root / ".mindweave_harness" / "sessions" / "session-old"
             old_dir.mkdir(parents=True)
             (old_dir / "transcript.jsonl").write_text(
                 '{"sequence":1,"type":"session_started","payload":{}}\n',
@@ -449,7 +449,7 @@ class SessionStoreTest(unittest.TestCase):
             self.assertEqual(
                 records[-1]["payload"]["persisted_output"],
                 (
-                    ".hexgent/sessions/session-batch/tool-results/"
+                    ".mindweave_harness/sessions/session-batch/tool-results/"
                     f"bash_example__{sha256(('A' * 20).encode()).hexdigest()[:12]}.txt"
                 ),
             )
@@ -703,10 +703,15 @@ class SessionStoreTest(unittest.TestCase):
                 ToolExecutionResult("success", "C" * 20, False),
             ]
 
+            def _fake_execute(tool_name, arguments, **_kwargs):
+                # 按参数返回固定结果：并发执行时不能用 list side_effect（消费顺序不确定）
+                index = int(json.loads(arguments)["path"].split(".")[0]) - 1
+                return results[index]
+
             with patch.object(
                 tool_execution_module,
                 "execute_tool_call",
-                side_effect=results,
+                side_effect=_fake_execute,
             ):
                 _, batch = drain_generator(
                     tool_execution_module.execute_tool_batch(

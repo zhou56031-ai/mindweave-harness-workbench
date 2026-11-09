@@ -8,13 +8,13 @@ import json
 from pathlib import Path
 import shutil
 
-from hexgent.agent_engine import AgentEngine, RunRequest
-from hexgent.config import HexgentConfig, load_config
-from hexgent.memory import MemoryStore
-from hexgent.observation import source_fingerprint
-from hexgent.session.checkpoint import CheckpointStore
-from hexgent.tool.tool_permission_pipeline import PermissionConfig, PermissionContext, evaluate_permission
-from hexgent.tool.tool_registry import get_tool
+from mindweave_harness.agent_engine import AgentEngine, RunRequest
+from mindweave_harness.config import MindWeaveHarnessConfig, load_config
+from mindweave_harness.memory import MemoryStore
+from mindweave_harness.observation import source_fingerprint
+from mindweave_harness.session.checkpoint import CheckpointStore
+from mindweave_harness.tool.tool_permission_pipeline import PermissionConfig, PermissionContext, evaluate_permission
+from mindweave_harness.tool.tool_registry import get_tool
 
 
 CASES = (
@@ -79,7 +79,7 @@ def prepare(root):
         cases.append(case)
         (root / case["id"]).mkdir()
     dump(root / "manifest.json", dict(revision="memory-m1-v1", runtime_sha256=source_fingerprint(),
-         cases=cases, base_config=asdict(config), config_source=str(repo / "hexgent.toml"),
+         cases=cases, base_config=asdict(config), config_source=str(repo / "mindweave_harness.toml"),
          scope_profile="eval_private_memory_store_production_dont_ask_v1",
          model_protocol="production Responses streaming; no provider proxy",
          planned_cases=6, planned_sessions=18,
@@ -92,9 +92,9 @@ def prepare(root):
 
 def config_for(manifest, variant):
     # 1. 复用冻结的配置，不向生产新增开关；ON/OFF 仅有一个字段差异。
-    from hexgent.config import _load_section
-    base = HexgentConfig()
-    config = HexgentConfig(**{name: _load_section(name, payload, type(getattr(base, name)))
+    from mindweave_harness.config import _load_section
+    base = MindWeaveHarnessConfig()
+    config = MindWeaveHarnessConfig(**{name: _load_section(name, payload, type(getattr(base, name)))
                             for name, payload in manifest["base_config"].items()})
     return replace(config, memory_retrieval=replace(config.memory_retrieval, enabled=variant != "OFF"))
 
@@ -102,10 +102,10 @@ def config_for(manifest, variant):
 def scope_probes(engine, private_root):
     """执行前核验真实权限决策，不执行任何危险 Handler。"""
     probes = [
-        ("read_file", {"path": str(private_root / ".hexgent/memory/MEMORY.md")}, "deny"),
+        ("read_file", {"path": str(private_root / ".mindweave_harness/memory/MEMORY.md")}, "deny"),
         ("list_directory", {"path": str(private_root)}, "deny"),
         ("glob", {"pattern": "../**"}, "deny"),
-        ("bash", {"command": "cat ../vault/.hexgent/memory/MEMORY.md"}, "deny"),
+        ("bash", {"command": "cat ../vault/.mindweave_harness/memory/MEMORY.md"}, "deny"),
         ("read_file", {"path": "pyproject.toml"}, "allow"),
     ]
     results = []

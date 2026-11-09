@@ -6,14 +6,14 @@ import asyncio
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from hexgent.integration.lifecycle import LifecycleProjector
-from hexgent.session import Session
-from hexgent.session.session_store import SessionStore
-from hexgent.adapters.web.run_manager import RunManager
-from hexgent.config import HexgentConfig
-from hexgent.integration.protocol import RuntimeCommand
-from hexgent.integration.runtime_adapter import RuntimeCommandAdapter
-from hexgent.integration.protocol import CommandDecision
+from mindweave_harness.integration.lifecycle import LifecycleProjector
+from mindweave_harness.session import Session
+from mindweave_harness.session.session_store import SessionStore
+from mindweave_harness.adapters.web.run_manager import RunManager
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.integration.protocol import RuntimeCommand
+from mindweave_harness.integration.runtime_adapter import RuntimeCommandAdapter
+from mindweave_harness.integration.protocol import CommandDecision
 from tests.test_runtime_command_adapter_phase1 import _ProbeEngineFactory
 
 
@@ -24,7 +24,7 @@ class RuntimeCommandEffectReconciliationPhase4Test(unittest.TestCase):
             command = RuntimeCommand("pause-crash", "PauseRun", "R1", "C1", "2026-01-01T00:01:00Z", {})
             adapter._persist_decision(session_id, command, CommandDecision("pause-crash", "R1", "ACCEPTED"))
             del adapter, manager
-            manager_b = RunManager(HexgentConfig(), root, engine_factory=_ProbeEngineFactory())
+            manager_b = RunManager(MindWeaveHarnessConfig(), root, engine_factory=_ProbeEngineFactory())
             adapter_b = RuntimeCommandAdapter(manager_b)
             asyncio.run(adapter_b.reconcile_command_effect("pause-crash"))
             state = adapter_b.get_command_state("pause-crash")
@@ -50,7 +50,7 @@ class RuntimeCommandEffectReconciliationPhase4Test(unittest.TestCase):
             del adapter, manager
             callbacks = []
             manager_b = RunManager(
-                HexgentConfig(), root,
+                MindWeaveHarnessConfig(), root,
                 engine_factory=_ProbeEngineFactory(),
                 lifecycle_callback=lambda callback_session_id, records: callbacks.append(
                     (callback_session_id, records)
@@ -74,7 +74,7 @@ class RuntimeCommandEffectReconciliationPhase4Test(unittest.TestCase):
                     "2026-01-01T00:02:00Z", {},
                 )))
                 self.assertEqual("REJECTED", decision.status)
-            manager_c = RunManager(HexgentConfig(), root, engine_factory=_ProbeEngineFactory())
+            manager_c = RunManager(MindWeaveHarnessConfig(), root, engine_factory=_ProbeEngineFactory())
             adapter_c = RuntimeCommandAdapter(manager_c)
             for command_type in ("ContinueRun", "ResumeRun"):
                 decision = asyncio.run(adapter_c.handle(RuntimeCommand(
@@ -91,7 +91,7 @@ class RuntimeCommandEffectReconciliationPhase4Test(unittest.TestCase):
             })
             adapter._persist_decision(session_id, command, CommandDecision("steer-crash", "R1", "ACCEPTED"))
             del adapter, manager
-            manager_b = RunManager(HexgentConfig(), root, engine_factory=_ProbeEngineFactory())
+            manager_b = RunManager(MindWeaveHarnessConfig(), root, engine_factory=_ProbeEngineFactory())
             adapter_b = RuntimeCommandAdapter(manager_b)
             asyncio.run(adapter_b.reconcile_command_effect("steer-crash"))
             async def continue_and_wait():
@@ -115,7 +115,7 @@ class RuntimeCommandEffectReconciliationPhase4Test(unittest.TestCase):
     def test_concurrent_reconcile_same_command_has_one_effect(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)
-            manager = RunManager(HexgentConfig(), root, engine_factory=_ProbeEngineFactory())
+            manager = RunManager(MindWeaveHarnessConfig(), root, engine_factory=_ProbeEngineFactory())
             adapter = RuntimeCommandAdapter(manager)
             session = asyncio.run(manager.create_session("default"))
             command = RuntimeCommand("concurrent-start", "StartRun", "R1", "C1",
@@ -139,7 +139,7 @@ class RuntimeCommandEffectReconciliationPhase4Test(unittest.TestCase):
     def test_rejected_and_missing_command_never_apply(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)
-            manager = RunManager(HexgentConfig(), root, engine_factory=_ProbeEngineFactory())
+            manager = RunManager(MindWeaveHarnessConfig(), root, engine_factory=_ProbeEngineFactory())
             adapter = RuntimeCommandAdapter(manager)
             session = asyncio.run(manager.create_session("default"))
             adapter._conversation_sessions["C1"] = session.session_id
@@ -154,7 +154,7 @@ class RuntimeCommandEffectReconciliationPhase4Test(unittest.TestCase):
             self.assertEqual("NOT_FOUND", missing["status"])
 
     def _prepare_continuable(self, root: Path):
-        manager = RunManager(HexgentConfig(), root, engine_factory=_ProbeEngineFactory())
+        manager = RunManager(MindWeaveHarnessConfig(), root, engine_factory=_ProbeEngineFactory())
         adapter = RuntimeCommandAdapter(manager)
         async def start_and_wait():
             await adapter.handle(RuntimeCommand("prepare", "StartRun", "R1", "C1",
@@ -174,7 +174,7 @@ class RuntimeCommandEffectReconciliationPhase4Test(unittest.TestCase):
     def _assert_continuation_recovery(self, command_type: str, command_id: str):
         with TemporaryDirectory() as directory:
             root = Path(directory)
-            manager_a = RunManager(HexgentConfig(), root, engine_factory=_ProbeEngineFactory())
+            manager_a = RunManager(MindWeaveHarnessConfig(), root, engine_factory=_ProbeEngineFactory())
             adapter_a = RuntimeCommandAdapter(manager_a)
             async def start_and_wait():
                 await adapter_a.handle(RuntimeCommand(
@@ -188,7 +188,7 @@ class RuntimeCommandEffectReconciliationPhase4Test(unittest.TestCase):
             session_id = first.session_id
             before_ids = self._started_ids(root, session_id)
 
-            manager_b = RunManager(HexgentConfig(), root, engine_factory=_ProbeEngineFactory())
+            manager_b = RunManager(MindWeaveHarnessConfig(), root, engine_factory=_ProbeEngineFactory())
             adapter_b = RuntimeCommandAdapter(manager_b)
             asyncio.run(manager_b.restore_session(session_id))
             command = RuntimeCommand(
@@ -199,7 +199,7 @@ class RuntimeCommandEffectReconciliationPhase4Test(unittest.TestCase):
             ))
             del adapter_b, manager_b
 
-            manager_c = RunManager(HexgentConfig(), root, engine_factory=_ProbeEngineFactory())
+            manager_c = RunManager(MindWeaveHarnessConfig(), root, engine_factory=_ProbeEngineFactory())
             adapter_c = RuntimeCommandAdapter(manager_c)
 
             async def reconcile_and_wait():
@@ -222,7 +222,7 @@ class RuntimeCommandEffectReconciliationPhase4Test(unittest.TestCase):
         """Decision 已提交但 Start 未执行时，重启后只产生一次 started fact。"""
         with TemporaryDirectory() as directory:
             root = Path(directory)
-            manager_a = RunManager(HexgentConfig(), root, engine_factory=_ProbeEngineFactory())
+            manager_a = RunManager(MindWeaveHarnessConfig(), root, engine_factory=_ProbeEngineFactory())
             adapter_a = RuntimeCommandAdapter(manager_a)
             session = asyncio.run(manager_a.create_session("default"))
             command = RuntimeCommand(
@@ -230,11 +230,11 @@ class RuntimeCommandEffectReconciliationPhase4Test(unittest.TestCase):
                 {"instruction": "开始任务"},
             )
             adapter_a._persist_decision(session.session_id, command,  # type: ignore[arg-type]
-                                        __import__("hexgent.integration.protocol", fromlist=["CommandDecision"]).CommandDecision(
+                                        __import__("mindweave_harness.integration.protocol", fromlist=["CommandDecision"]).CommandDecision(
                                             "start-crash", "R1", "ACCEPTED"))
             del adapter_a, manager_a
 
-            manager_b = RunManager(HexgentConfig(), root, engine_factory=_ProbeEngineFactory())
+            manager_b = RunManager(MindWeaveHarnessConfig(), root, engine_factory=_ProbeEngineFactory())
             adapter_b = RuntimeCommandAdapter(manager_b)
             async def reconcile_and_wait():
                 await adapter_b.reconcile_command_effect("start-crash")
@@ -244,7 +244,7 @@ class RuntimeCommandEffectReconciliationPhase4Test(unittest.TestCase):
             result = adapter_b.get_command_state("start-crash")
             self.assertEqual("APPLIED", result["effect"])
             records = json.loads("[" + ",".join(
-                (root / ".hexgent" / "sessions" / session.session_id / "transcript.jsonl").read_text(
+                (root / ".mindweave_harness" / "sessions" / session.session_id / "transcript.jsonl").read_text(
                     encoding="utf-8").splitlines()) + "]")
             started = [record for record in records if record["type"] == "agent_run_started"]
             self.assertEqual(1, len(started))
@@ -252,7 +252,7 @@ class RuntimeCommandEffectReconciliationPhase4Test(unittest.TestCase):
             self.assertEqual("start-crash", started[0]["payload"]["caused_by_command_id"])
             asyncio.run(adapter_b.reconcile_command_effect("start-crash"))
             records = [json.loads(line) for line in (
-                root / ".hexgent" / "sessions" / session.session_id / "transcript.jsonl"
+                root / ".mindweave_harness" / "sessions" / session.session_id / "transcript.jsonl"
             ).read_text(encoding="utf-8").splitlines()]
             self.assertEqual(1, len([record for record in records if record["type"] == "agent_run_started"]))
 
@@ -274,7 +274,7 @@ class RuntimeCommandEffectReconciliationPhase4Test(unittest.TestCase):
     @staticmethod
     def _records(root: Path, session_id: str) -> list[dict]:
         return [json.loads(line) for line in (
-            root / ".hexgent" / "sessions" / session_id / "transcript.jsonl"
+            root / ".mindweave_harness" / "sessions" / session_id / "transcript.jsonl"
         ).read_text(encoding="utf-8").splitlines()]
 
     @classmethod
@@ -295,7 +295,7 @@ class RuntimeCommandEffectReconciliationPhase4Test(unittest.TestCase):
             restored = Session.restored(SessionStore.open_existing(root, "S1"), session.settings)
             self.assertTrue(restored.cancellation_committed)
             records = [json.loads(line) for line in (
-                root / ".hexgent" / "sessions" / "S1" / "transcript.jsonl"
+                root / ".mindweave_harness" / "sessions" / "S1" / "transcript.jsonl"
             ).read_text(encoding="utf-8").splitlines()]
             events = LifecycleProjector().project("S1", records)
             self.assertEqual(["AgentRunCancelled"], [event.type for event in events])
@@ -345,13 +345,13 @@ class RuntimeCommandEffectReconciliationPhase4Test(unittest.TestCase):
                     "workspace_run_id": "R1", "conversation_id": "C1", "instruction": "只检查权限",
                 },
             )
-            context = __import__("hexgent.context", fromlist=["ContextManager"]).ContextManager()
+            context = __import__("mindweave_harness.context", fromlist=["ContextManager"]).ContextManager()
             query = context.append_user_query("只检查权限")
             session.record_user_query(query, source="steering", command_id="steer-1")
             del session, context
 
             restored = Session.restored(SessionStore.open_existing(root, "S1"),
-                                        __import__("hexgent.session", fromlist=["SessionSettings"]).SessionSettings())
+                                        __import__("mindweave_harness.session", fromlist=["SessionSettings"]).SessionSettings())
             self.assertEqual(1, len(restored.steering_context_mutations("steer-1")))
             self.assertEqual([], restored.pending_steering_intents())
 

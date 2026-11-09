@@ -56,6 +56,19 @@ resources/
 # 文档默认不追踪，但上下文设计需要随实现持续维护。
 docs/*
 !docs/上下文管理设计.md
+docs/教学文档/
+!docs/项目记录/
+!docs/项目记录/**
+!docs/详解-*.md
+!docs/面试-*.md
+!docs/改进-*.md
+!docs/架构级*.md
+!docs/上下文压缩*.md
+!docs/压缩实验*.md
+!docs/压缩改进*.md
+!docs/工具并行*.md
+!docs/合并方案*.md
+!docs/压缩AB*.json
 /frontend/next-env.d.ts
 
 # 生成式运行证据仅保留本地；审计脚本不受这些规则影响。
@@ -99,3 +112,21 @@ docs/*
 /eval/context_remediation_v1/diagnostics/**/historical_regression_cases.json
 /eval/context_remediation_v1/diagnostics/**/adversarial_cases.json
 /eval/context_remediation_v1/diagnostics/**/positive_controls.json
+
+# 独立提取的 Harness 项目（有自己的 .git），避免主仓把它当子模块
+mindweave-harness/
+# 运行时工作区数据
+.hexgent/
+.mindweave_harness/
+
+# 工作台运行时与依赖
+workbench/mindweave/front/node_modules/
+workbench/mindweave/workspace/
+workbench/mindweave/exports/
+workbench/mindweave/.data/
+workbench/eval_data/
+workbench/mindweave/backend/__pycache__/
+workbench/mindweave/front/dist/
+
+# 个人面试准备资料，不上传
+docs/面试准备/

@@ -3,7 +3,7 @@
 from types import SimpleNamespace
 import unittest
 
-from hexgent.loop.call_model import call_model
+from mindweave_harness.loop.call_model import call_model
 
 
 def _drain(generator):

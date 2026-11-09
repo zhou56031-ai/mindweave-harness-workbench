@@ -1,4 +1,4 @@
-"""仅Benchmark进程安装预算闸门，使用既有Hexgent Web/Fixture入口。"""
+"""仅Benchmark进程安装预算闸门，使用既有MindWeave Harness Web/Fixture入口。"""
 import argparse
 from dataclasses import replace
 import importlib
@@ -11,7 +11,7 @@ from .protocol_v2 import BudgetExhausted,TrialBudget
 
 
 def binding(observer=None):
-    from hexgent.observation import current_observation
+    from mindweave_harness.observation import current_observation
     observer=observer or current_observation.get()
     if observer is None or observer.store is None:raise RuntimeError('预算边界缺少Run/Session来源')
     started=next(r for r in reversed(observer.store.read_transcript()) if r['type']=='agent_run_started')
@@ -28,7 +28,7 @@ def binding(observer=None):
 class Responses:
     def __init__(self,source,budget,fallback=None):self.source=source;self.budget=budget;self.last_binding=fallback
     def create(self,**request):
-        from hexgent.utils.token_estimator import estimate_request_tokens
+        from mindweave_harness.utils.token_estimator import estimate_request_tokens
         try:who=binding()
         except (RuntimeError,StopIteration):
             if self.last_binding is None:raise
@@ -94,16 +94,16 @@ def install(config):
         previous=json.loads(meta_path.read_text())
         if any(previous[k]!=metadata[k] for k in ['identity','budget','started_at']):raise ValueError('不得重置Trial预算或起始时间')
     else:dump(meta_path,metadata)
-    import hexgent.observation as observation
+    import mindweave_harness.observation as observation
     original=observation.observed_handler
     def guarded(function,arguments,context,call_id,attempt,tool_name):
         try:budget.dispatch(binding(context.observation),call_id,tool_name,attempt)
         except BudgetExhausted as exc:
-            from hexgent.tool.tool_result import ToolHandlerResult
+            from mindweave_harness.tool.tool_result import ToolHandlerResult
             return ToolHandlerResult.failed('TRIAL_BUDGET_EXHAUSTED',str(exc),side_effect_state='not_started')
         return original(function,arguments,context,call_id,attempt,tool_name)
     observation.observed_handler=guarded
-    clients=importlib.import_module('hexgent.client');original_client=clients.get_client
+    clients=importlib.import_module('mindweave_harness.client');original_client=clients.get_client
     def get_client():
         try:return Client(original_client().with_options(max_retries=0),budget)
         except Exception as exc:
@@ -111,7 +111,7 @@ def install(config):
                 termination_reason='provider_unavailable',error_type=type(exc).__name__,source='Eval SDK construction boundary'))
             raise
     clients.get_client=get_client
-    importlib.import_module('hexgent.loop.agent_loop').get_client=get_client
+    importlib.import_module('mindweave_harness.loop.agent_loop').get_client=get_client
     return budget
 
 
@@ -119,7 +119,7 @@ def main():
     p=argparse.ArgumentParser();p.add_argument('--workdir',type=Path,required=True);args=p.parse_args()
     install(json.loads((args.workdir/'.benchmark-control.json').read_text()))
     import uvicorn
-    from hexgent.adapters.web.app import create_app
+    from mindweave_harness.adapters.web.app import create_app
     uvicorn.run(create_app(workdir=args.workdir),host='0.0.0.0',port=8000)
 
 

@@ -6,8 +6,8 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import unittest
 
-from hexgent.observation import RunObservation, current_observation
-from hexgent.loop.call_model import call_model, ModelCallError
+from mindweave_harness.observation import RunObservation, current_observation
+from mindweave_harness.loop.call_model import call_model, ModelCallError
 
 
 class ProviderObservationTests(unittest.TestCase):

@@ -113,4 +113,4 @@ class ModuleBenchmarkTest(unittest.TestCase):
             self.skipTest("历史 artifact 不在当前 checkout")
         self.assertLessEqual(report["phase5c"]["qualified_task_count"], report["phase5c"]["implemented_candidate_task_count"])
         self.assertIn("field presence only", report["phase5c"]["audit_field_coverage"]["scope"])
-        self.assertIn("hexgent/agent_engine.py", protected_hashes())
+        self.assertIn("mindweave_harness/agent_engine.py", protected_hashes())

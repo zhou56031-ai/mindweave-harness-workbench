@@ -9,16 +9,16 @@ import unittest
 from unittest.mock import patch
 from openai.types.responses import ResponseOutputMessage, ResponseOutputText
 
-from hexgent.agent_engine import AgentEngine, RunRequest
-from hexgent.adapters.cli.pinned_commands import handle_pinned_command
-from hexgent.config import HexgentConfig, load_config
-from hexgent.context.context_builder import build_context_details
-from hexgent.context.context_compaction import compact_context_if_needed
-from hexgent.events import ToolFinishedEvent
-from hexgent.run_control import RunControl
-from hexgent.session.pinned_constraints import active_constraints
-from hexgent.tool.tool_registry import TOOL_REGISTRY
-from hexgent.utils.token_estimator import estimate_request_tokens
+from mindweave_harness.agent_engine import AgentEngine, RunRequest
+from mindweave_harness.adapters.cli.pinned_commands import handle_pinned_command
+from mindweave_harness.config import MindWeaveHarnessConfig, load_config
+from mindweave_harness.context.context_builder import build_context_details
+from mindweave_harness.context.context_compaction import compact_context_if_needed
+from mindweave_harness.events import ToolFinishedEvent
+from mindweave_harness.run_control import RunControl
+from mindweave_harness.session.pinned_constraints import active_constraints
+from mindweave_harness.tool.tool_registry import TOOL_REGISTRY
+from mindweave_harness.utils.token_estimator import estimate_request_tokens
 from eval.support.agent_contracts import FakeModel, text_response, tool_call
 
 
@@ -34,7 +34,7 @@ class PinnedProductionContextTests(unittest.TestCase):
         self.temp = TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        base = HexgentConfig()
+        base = MindWeaveHarnessConfig()
         self.cfg = replace(base, context_extraction=replace(base.context_extraction, enabled=False),
                            memory_retrieval=replace(base.memory_retrieval, enabled=False))
         self.engine = AgentEngine(self.cfg, self.root)
@@ -148,7 +148,7 @@ class PinnedProductionContextTests(unittest.TestCase):
                     self.engine.manage_pinned_constraint("revoke", "illegal", constraint_id=a["id"], expected_version=1)
                 return iter([])
             return native(**request)
-        with patch("hexgent.loop.agent_turn.active_constraints", wraps=active_constraints) as reads:
+        with patch("mindweave_harness.loop.agent_turn.active_constraints", wraps=active_constraints) as reads:
             list(self.engine.run("继续", client=SimpleNamespace(responses=SimpleNamespace(create=create))))
             self.assertGreaterEqual(reads.call_count, 3)
         self.assertEqual(len(calls), 2)
@@ -198,12 +198,12 @@ class PinnedProductionContextTests(unittest.TestCase):
         self.assertEqual(block(model.calls[0]), [])
 
     def test_cli_main_routes_management_without_engine_run(self):
-        from hexgent.adapters.cli.main import main
+        from mindweave_harness.adapters.cli.main import main
         terminal = SimpleNamespace(read_message=iter(["/pin 只读", "/pins", "exit"]).__next__)
-        with patch("hexgent.adapters.cli.main.TerminalIO", return_value=terminal), \
-             patch("hexgent.adapters.cli.main.find_workspace_root", return_value=self.root), \
-             patch("hexgent.adapters.cli.main.load_config", return_value=self.cfg), \
-             patch("hexgent.adapters.cli.main.AgentEngine.create", return_value=self.engine), \
+        with patch("mindweave_harness.adapters.cli.main.TerminalIO", return_value=terminal), \
+             patch("mindweave_harness.adapters.cli.main.find_workspace_root", return_value=self.root), \
+             patch("mindweave_harness.adapters.cli.main.load_config", return_value=self.cfg), \
+             patch("mindweave_harness.adapters.cli.main.AgentEngine.create", return_value=self.engine), \
              patch.object(self.engine, "run", side_effect=AssertionError("CLI command must not start a model run")) as run, \
              patch("builtins.print"):
             main()

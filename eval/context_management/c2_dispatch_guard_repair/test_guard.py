@@ -19,7 +19,7 @@ from eval.context_management.c2_prep_3.runner import policy
 from eval.context_management.c2_prep_3.prepare import ROOT, read_json
 from eval.context_management.c1_independent import response, plain
 from eval.context_management.c2_prep_2.control import BudgetDenied
-from hexgent.observation import RunObservation,current_observation
+from mindweave_harness.observation import RunObservation,current_observation
 
 
 class Rig:
@@ -192,7 +192,7 @@ class EntryTests(unittest.TestCase):
         finally:client.close()
     def test_mock_real_sdk_entry_stage1_production_loop(self):
         manifest=read_json(ROOT/'smoke_manifest.json'); budget=TokenBudget(policy(manifest,1));wires=[]
-        with TemporaryDirectory() as tmp,patch('hexgent.client.get_client',side_effect=AssertionError('不得读取凭证')):
+        with TemporaryDirectory() as tmp,patch('mindweave_harness.client.get_client',side_effect=AssertionError('不得读取凭证')):
             for e in manifest['fixtures'][:2]:
                 oracle=read_json(Path(e['oracle_v2_path']))
                 summary='<summary>'+ '\n'.join(f['quote'] for f in oracle['facts'] if f['summary_responsibility']=='SUMMARY_REQUIRED')+'</summary>'

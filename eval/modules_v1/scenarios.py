@@ -17,22 +17,22 @@ from eval.phase3.scenarios import v1_scenarios as recovery_scenarios
 from eval.phase2.scenarios import v1_scenarios as safety_scenarios
 from eval.phase2.oracle import check_all_contracts
 from eval.phase5.scenarios import BenchmarkResponses, _base_config
-from hexgent.agent_engine import AgentEngine
-from hexgent.context import ContextManager, ContextLimits
-from hexgent.context.context_compaction import compact_context_if_needed
-from hexgent.memory import MemoryStore, MemoryRetriever, MemoryRetrievalLimits
-from hexgent.plan import InMemoryPlanStore, Plan, PlanStep
-from hexgent.session import Session, SessionRestorer
-from hexgent.memory import ContextRecordInput, ContextRetrievalLimits
-from hexgent.memory.context_retrieval import ContextRecordRetriever, format_retrieved_context
-from hexgent.memory.context_record_extraction import ContextExtractionLimits
-from hexgent.loop.extract_context_records import extract_context_records
-from hexgent.run_control import InterruptController
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.tool.tool_registry import TOOL_REGISTRY, RegisteredTool
-from hexgent.tool.tool_validation import TOOL_SCHEMAS
-from hexgent.tool.tool_result import ToolHandlerResult
-from hexgent.tool.tool_scheduler import execute_tool_batch, ToolParallelLimits
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.context import ContextManager, ContextLimits
+from mindweave_harness.context.context_compaction import compact_context_if_needed
+from mindweave_harness.memory import MemoryStore, MemoryRetriever, MemoryRetrievalLimits
+from mindweave_harness.plan import InMemoryPlanStore, Plan, PlanStep
+from mindweave_harness.session import Session, SessionRestorer
+from mindweave_harness.memory import ContextRecordInput, ContextRetrievalLimits
+from mindweave_harness.memory.context_retrieval import ContextRecordRetriever, format_retrieved_context
+from mindweave_harness.memory.context_record_extraction import ContextExtractionLimits
+from mindweave_harness.loop.extract_context_records import extract_context_records
+from mindweave_harness.run_control import InterruptController
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.tool.tool_registry import TOOL_REGISTRY, RegisteredTool
+from mindweave_harness.tool.tool_validation import TOOL_SCHEMAS
+from mindweave_harness.tool.tool_result import ToolHandlerResult
+from mindweave_harness.tool.tool_scheduler import execute_tool_batch, ToolParallelLimits
 
 
 def drain(generator):
@@ -280,7 +280,7 @@ def context_record_continuation():
         response = SimpleNamespace(output_text=candidate, usage=None)
         client = SimpleNamespace(responses=SimpleNamespace(create=lambda **_: iter([
             SimpleNamespace(type="response.completed", response=response)])))
-        with patch("hexgent.loop.extract_context_records.get_model", return_value="fixture-model"):
+        with patch("mindweave_harness.loop.extract_context_records.get_model", return_value="fixture-model"):
             extract_context_records(session, client, ContextExtractionLimits(enabled=True), InterruptController(), force=True)
         produced = session.context_records.active_records
         if not produced:

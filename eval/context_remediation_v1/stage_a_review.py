@@ -5,7 +5,7 @@ import json
 import subprocess
 from pathlib import Path
 
-from hexgent.context.key_fact_snapshot import validate_snapshot
+from mindweave_harness.context.key_fact_snapshot import validate_snapshot
 from .offline import ROOT, save, fingerprints
 
 

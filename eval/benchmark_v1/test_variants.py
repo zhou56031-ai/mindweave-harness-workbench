@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch,Mock
-from hexgent.config import load_config
+from mindweave_harness.config import load_config
 from .variants import VARIANTS,effective_config,metadata,config_toml,verify_actual,require_applicable
 from .baseline_support import full_config
 from .business_cases import load_case
@@ -28,7 +28,7 @@ class VariantTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             root=Path(tmp)
             for variant in VARIANTS:
-                cfg=effective_config(BUDGET,variant);(root/'hexgent.toml').write_text(config_toml(cfg))
+                cfg=effective_config(BUDGET,variant);(root/'mindweave_harness.toml').write_text(config_toml(cfg))
                 self.assertEqual(load_config(root),cfg)
 
     def test_unknown_variants_and_legacy_rejected(self):

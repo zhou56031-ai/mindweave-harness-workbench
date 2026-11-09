@@ -19,10 +19,10 @@ from typing import Any
 from urllib.parse import urlsplit
 from contextlib import nullcontext
 
-from hexgent.agent_engine import AgentEngine
-from hexgent.client import get_client, get_model
-from hexgent.config import HexgentConfig
-from hexgent.memory.context_retrieval import ContextRetrievalLimits
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.client import get_client, get_model
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.memory.context_retrieval import ContextRetrievalLimits
 
 from .fixtures import cloned_snapshot, cloned_workspace, freeze_snapshot, workspace_manifest
 from .l1 import freeze_qualified_stage_a
@@ -64,7 +64,7 @@ def _eval_revision() -> dict[str, str]:
 def _fixture_hash(fixture_id: str) -> str:
     canonical = json.dumps(workspace_manifest(
         Path(__file__).with_name("fixtures") / fixture_id,
-        include_hexgent=True,
+        include_mindweave_harness=True,
     ), sort_keys=True, ensure_ascii=False)
     return sha256(canonical.encode("utf-8")).hexdigest()
 
@@ -152,7 +152,7 @@ def _decorate_artifact(path: Path, engine: AgentEngine, *, task_id: str, run_ind
     return artifact
 
 
-def _run_task(spec: TaskSpecification, destination: Path, run_index: int, *, config: HexgentConfig | None = None,
+def _run_task(spec: TaskSpecification, destination: Path, run_index: int, *, config: MindWeaveHarnessConfig | None = None,
               stage: str = "general", oracle_factory: Any = None) -> dict[str, Any]:
     with cloned_workspace(spec.fixture) as workspace:
         # 只有 T1 注册 eval-only bash；其余任务既不暴露也不能 dispatch bash。
@@ -244,7 +244,7 @@ def _run_l1(destination: Path, run_index: int) -> dict[str, Any]:
                     stage_b_spec,
                     cloned,
                     destination / variant,
-                    config=HexgentConfig(context_retrieval=ContextRetrievalLimits(enabled=enabled)),
+                    config=MindWeaveHarnessConfig(context_retrieval=ContextRetrievalLimits(enabled=enabled)),
                     oracle_factory=_stage_b_oracle,
                 )
             stage_b[variant] = _decorate_artifact(

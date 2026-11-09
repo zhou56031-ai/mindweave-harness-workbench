@@ -3,10 +3,10 @@ import pathlib
 import unittest
 from unittest.mock import patch
 
-from hexgent.integration.capability import CapabilityResult
-from hexgent.prompt import TOOLS
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.tool.tool_execution import execute_tool_call
+from mindweave_harness.integration.capability import CapabilityResult
+from mindweave_harness.prompt import TOOLS
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.tool.tool_execution import execute_tool_call
 
 
 class _PlanStore:
@@ -47,7 +47,7 @@ class CreateDocumentWorkspaceCapabilityTest(unittest.TestCase):
         self.assertTrue(tool["strict"])
         self.assertFalse(tool["parameters"]["additionalProperties"])
 
-    @patch("hexgent.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
+    @patch("mindweave_harness.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
     def test_success_preserves_workspace_run_and_original_call_identity(self, invoke):
         invoke.return_value = CapabilityResult(
             "v1",
@@ -78,7 +78,7 @@ class CreateDocumentWorkspaceCapabilityTest(unittest.TestCase):
             },
         )
 
-    @patch("hexgent.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
+    @patch("mindweave_harness.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
     def test_workspace_write_permission_can_deny_before_client(self, invoke):
         result = execute_tool_call(
             "create_document",
@@ -92,7 +92,7 @@ class CreateDocumentWorkspaceCapabilityTest(unittest.TestCase):
         self.assertEqual("user_denied", result.failure.code)
         invoke.assert_not_called()
 
-    @patch("hexgent.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
+    @patch("mindweave_harness.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
     def test_ws_denied_is_model_visible_permission_failure(self, invoke):
         invoke.return_value = CapabilityResult(
             "v1",
@@ -117,7 +117,7 @@ class CreateDocumentWorkspaceCapabilityTest(unittest.TestCase):
         self.assertEqual(1, result.attempt_count)
         invoke.assert_called_once()
 
-    @patch("hexgent.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
+    @patch("mindweave_harness.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
     def test_pending_and_idempotency_conflict_are_visible_without_auto_retry(self, invoke):
         for error_code in ("DOCUMENT_CREATE_PENDING", "IDEMPOTENCY_CONFLICT"):
             with self.subTest(error_code=error_code):
@@ -144,7 +144,7 @@ class CreateDocumentWorkspaceCapabilityTest(unittest.TestCase):
                 self.assertEqual(1, result.attempt_count)
                 invoke.assert_called_once()
 
-    @patch("hexgent.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
+    @patch("mindweave_harness.tool.workspace_capability_tool.WorkspaceCapabilityClient.invoke")
     def test_rejects_forged_authority_and_internal_fields_before_client(self, invoke):
         arguments = json.dumps(
             {

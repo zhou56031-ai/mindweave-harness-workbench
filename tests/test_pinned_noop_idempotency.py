@@ -6,10 +6,10 @@ from tempfile import TemporaryDirectory
 from unittest import TestCase
 from unittest.mock import patch
 
-from hexgent.agent_engine import AgentEngine
-from hexgent.config import HexgentConfig
-from hexgent.session.pinned_constraints import manage_constraint, replay_constraints
-from hexgent.session.session_store import SessionStore
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.session.pinned_constraints import manage_constraint, replay_constraints
+from mindweave_harness.session.session_store import SessionStore
 
 
 class NoopRevokeTests(TestCase):
@@ -17,7 +17,7 @@ class NoopRevokeTests(TestCase):
         temp = TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         self.root = Path(temp.name)
-        self.engine = AgentEngine(HexgentConfig(), self.root)
+        self.engine = AgentEngine(MindWeaveHarnessConfig(), self.root)
         self.item = self.engine.manage_pinned_constraint("pin", "pin", text="只读")["changes"][0]
         self.args = dict(constraint_id=self.item["id"], expected_version=2)
         result = self.engine.manage_pinned_constraint("revoke", "first", constraint_id=self.item["id"], expected_version=1)
@@ -65,7 +65,7 @@ class NoopRevokeTests(TestCase):
         self.commit_noop()
 
     def test_other_process_denied_then_replays_single_commit(self):
-        code = "from pathlib import Path; import sys; from hexgent.session.session_store import SessionStore; from hexgent.session.pinned_constraints import manage_constraint; s=SessionStore.open_existing(Path(sys.argv[1]),sys.argv[2]); manage_constraint(s,'revoke','noop',constraint_id=sys.argv[3],expected_version=2)"
+        code = "from pathlib import Path; import sys; from mindweave_harness.session.session_store import SessionStore; from mindweave_harness.session.pinned_constraints import manage_constraint; s=SessionStore.open_existing(Path(sys.argv[1]),sys.argv[2]); manage_constraint(s,'revoke','noop',constraint_id=sys.argv[3],expected_version=2)"
         argv = [sys.executable, "-c", code, str(self.root), self.store.session_id, self.item["id"]]
         with self.store.write_guard():
             self.commit_noop()

@@ -58,11 +58,11 @@ T06 unknown 的最终业务结果正确且没有重复，但严格 Scope 失败�
 
 T08 的 `cp-000003` 是 Session 对应的 active 快照，覆盖到序号36；后面又出现模型响应等状态事实。`session_restore._pending_run_state` 在这种情况下拒绝用过时运行预算继续。真实 Continue 尝试抛出 RuntimeError；未发起第二轮恢复模型请求。最终发货一次只证明切点前副作用与恢复的保守处理，不证明 Restore 后幂等执行通过。
 
-T05 生产 MemoryStore 仅按 `workdir/.hexgent/memory` 定位，MemoryItem 没有 userId/workspaceId 可信 namespace。单 Trial 单身份隔离环境可做受限续接；不能通过另换目录宣称 Production 多身份隔离。Verifier 检查注入条目仍为 ACTIVE 且正文摘要一致；失效/替代反例有离线覆盖，但本轮没有真实撤销/更新 Smoke。正确答案与真实 Memory 注入并不构成成本收益的因果估计，没有做 No Memory 配对实验。
+T05 生产 MemoryStore 仅按 `workdir/.mindweave_harness/memory` 定位，MemoryItem 没有 userId/workspaceId 可信 namespace。单 Trial 单身份隔离环境可做受限续接；不能通过另换目录宣称 Production 多身份隔离。Verifier 检查注入条目仍为 ACTIVE 且正文摘要一致；失效/替代反例有离线覆盖，但本轮没有真实撤销/更新 Smoke。正确答案与真实 Memory 注入并不构成成本收益的因果估计，没有做 No Memory 配对实验。
 
 ### Artifact 位置
 
-所有路径位于 `/Users/hector/dev/hexgent/eval/benchmark_v1/runs/`：
+所有路径位于 `/Users/hector/dev/mindweave_harness/eval/benchmark_v1/runs/`：
 
 - T04 eligible：`b1d-t04-eligible-v1-r2/`
 - T04 ineligible：`b1d-t04-ineligible-v1/`
@@ -89,14 +89,14 @@ Fixture归档后关闭HTTP并删除该Trial私有数据库/凭证/workdir；T05�
 
 .venv/bin/python -m eval.benchmark_v1.fixture_smoke \
   --case t06-unknown --trial-id <新TrialID> --root <新目录> \
-  --provider-env-file /Users/hector/dev/hexgent/.env
+  --provider-env-file /Users/hector/dev/mindweave_harness/.env
 
 .venv/bin/python -m eval.benchmark_v1.memory_business_smoke \
   --case t05-single --trial-id <新TrialID> --root <新目录> \
   --workspace-source /Users/hector/dev/hex-workspace \
   --build-metadata eval/benchmark_v1/runs/b1b-build-20261013-r4/build-metadata.json \
   --docker-socket unix:///Users/hector/.docker/run/docker.sock \
-  --provider-env-file /Users/hector/dev/hexgent/.env \
+  --provider-env-file /Users/hector/dev/mindweave_harness/.env \
   --embedding-env-file /Users/hector/dev/hex-workspace/.env
 ```
 

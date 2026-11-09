@@ -1,11 +1,11 @@
 import unittest
 from unittest.mock import patch
 
-from hexgent.integration.capability import WorkspaceCapabilityClient
+from mindweave_harness.integration.capability import WorkspaceCapabilityClient
 
 
 class WorkspaceCapabilityClientPhase5Test(unittest.TestCase):
-    @patch("hexgent.integration.capability.httpx.post")
+    @patch("mindweave_harness.integration.capability.httpx.post")
     def test_maps_succeeded_result(self, post):
         post.return_value.status_code = 200
         post.return_value.json.return_value = {
@@ -17,7 +17,7 @@ class WorkspaceCapabilityClientPhase5Test(unittest.TestCase):
         post.assert_called_once()
         self.assertEqual("r1", post.call_args.kwargs["json"]["runId"])
 
-    @patch("hexgent.integration.capability.httpx.post")
+    @patch("mindweave_harness.integration.capability.httpx.post")
     def test_rejects_mismatched_response_identity(self, post):
         post.return_value.status_code = 200
         post.return_value.json.return_value = {

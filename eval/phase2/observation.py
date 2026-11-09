@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import Any, Iterable
 
 from eval.phase1.observation import RuntimeObservation
-from hexgent.events import ToolFinishedEvent, ToolStartedEvent
+from mindweave_harness.events import ToolFinishedEvent, ToolStartedEvent
 
 
 @dataclass(frozen=True)

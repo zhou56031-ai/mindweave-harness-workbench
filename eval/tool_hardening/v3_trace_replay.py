@@ -12,11 +12,11 @@ from types import SimpleNamespace
 
 from eval.modules_v1.scenarios import drain
 from eval.support.agent_contracts import tool_call
-from hexgent.plan import InMemoryPlanStore
-from hexgent.session import Session
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.tool.tool_registry import TOOL_REGISTRY
-from hexgent.tool.tool_scheduler import execute_tool_batch, ToolParallelLimits
+from mindweave_harness.plan import InMemoryPlanStore
+from mindweave_harness.session import Session
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.tool.tool_registry import TOOL_REGISTRY
+from mindweave_harness.tool.tool_scheduler import execute_tool_batch, ToolParallelLimits
 from .v2_runner import digest, normalize_output, stats
 
 
@@ -34,7 +34,7 @@ def freeze(directory, destination):
     """完整保留原始 arguments 字符串、callId 和每轮边界，不重规划。"""
     artifact = json.loads((directory / "artifact.json").read_text())
     workspace = (directory / "workspace").resolve()
-    transcript = next((workspace / ".hexgent/sessions").glob("*/transcript.jsonl"))
+    transcript = next((workspace / ".mindweave_harness/sessions").glob("*/transcript.jsonl"))
     records = [json.loads(line) for line in transcript.read_text().splitlines()]
     outputs = {m["call_id"]: m["output"] for r in records if r["type"] == "context_messages_appended"
                for m in r["payload"].get("messages", []) if m.get("type") == "function_call_output"}

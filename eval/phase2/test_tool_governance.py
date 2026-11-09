@@ -5,19 +5,19 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from hexgent.plan import InMemoryPlanStore
-from hexgent.session import SessionStore, ToolResultLimits
-from hexgent.session.tool_call_recovery import (
+from mindweave_harness.plan import InMemoryPlanStore
+from mindweave_harness.session import SessionStore, ToolResultLimits
+from mindweave_harness.session.tool_call_recovery import (
     build_recovery_tool_output,
     find_unclosed_tool_calls,
 )
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.tool.tool_execution import execute_tool_call
-from hexgent.tool.tool_permission_pipeline import PermissionContext, evaluate_permission
-from hexgent.tool.tool_registry import get_tool
-from hexgent.tool.tool_result import ToolHandlerResult
-from hexgent.tool.tool_retry import ToolRetryLimits
-from hexgent.tool import tool_validation
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.tool.tool_execution import execute_tool_call
+from mindweave_harness.tool.tool_permission_pipeline import PermissionContext, evaluate_permission
+from mindweave_harness.tool.tool_registry import get_tool
+from mindweave_harness.tool.tool_result import ToolHandlerResult
+from mindweave_harness.tool.tool_retry import ToolRetryLimits
+from mindweave_harness.tool import tool_validation
 
 
 class ToolGovernanceEvaluation(unittest.TestCase):
@@ -78,12 +78,12 @@ class ToolGovernanceEvaluation(unittest.TestCase):
             return ToolHandlerResult.success("成功", {"ok": True})
 
         # 使用现有执行器的测试注册入口，避免评测依赖真实网络或进程。
-        from hexgent.tool.tool_registry import RegisteredTool
+        from mindweave_harness.tool.tool_registry import RegisteredTool
         from unittest.mock import patch
 
         registered = RegisteredTool(flaky, automatic_retry_safe=True)
         schema = {"type": "object", "properties": {}, "required": [], "additionalProperties": False}
-        with patch("hexgent.tool.tool_execution.get_tool", return_value=registered), patch.dict(
+        with patch("mindweave_harness.tool.tool_execution.get_tool", return_value=registered), patch.dict(
             tool_validation.TOOL_SCHEMAS, {"flaky": schema}
         ):
             result = execute_tool_call(
@@ -103,7 +103,7 @@ class ToolGovernanceEvaluation(unittest.TestCase):
             return ToolHandlerResult.failed("unknown", "副作用未知", retryable=True, side_effect_state="unknown")
 
         registered = RegisteredTool(unsafe, automatic_retry_safe=True)
-        with patch("hexgent.tool.tool_execution.get_tool", return_value=registered), patch.dict(
+        with patch("mindweave_harness.tool.tool_execution.get_tool", return_value=registered), patch.dict(
             tool_validation.TOOL_SCHEMAS, {"unsafe": schema}
         ):
             result = execute_tool_call(

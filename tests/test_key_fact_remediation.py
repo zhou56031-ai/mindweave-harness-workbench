@@ -10,16 +10,16 @@ from concurrent.futures import ThreadPoolExecutor
 from threading import Event
 from unittest.mock import patch
 
-from hexgent.agent_engine import AgentEngine, RunRequest
-from hexgent.config import HexgentConfig
-from hexgent.context import ContextLimits, ContextManager
-from hexgent.context.context_compaction import compact_context_if_needed, CompactionPublicationError
-from hexgent.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS
-from hexgent.context.key_fact_snapshot import validate_snapshot, snapshot_message
-from hexgent.session import Session
-from hexgent.session.checkpoint import _context_snapshot, CheckpointStore
-from hexgent.session.session_store import SessionStore
-from hexgent.events import CheckpointCommittedEvent
+from mindweave_harness.agent_engine import AgentEngine, RunRequest
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.context import ContextLimits, ContextManager
+from mindweave_harness.context.context_compaction import compact_context_if_needed, CompactionPublicationError
+from mindweave_harness.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS
+from mindweave_harness.context.key_fact_snapshot import validate_snapshot, snapshot_message
+from mindweave_harness.session import Session
+from mindweave_harness.session.checkpoint import _context_snapshot, CheckpointStore
+from mindweave_harness.session.session_store import SessionStore
+from mindweave_harness.events import CheckpointCommittedEvent
 from eval.support.agent_contracts import text_response, tool_call
 
 
@@ -234,7 +234,7 @@ class RemediationTests(unittest.TestCase):
         self.assertEqual(commit["type"], "context_compaction_applied")
         original(self.manager, commit["payload"])
         self.assertIsNotNone(self.manager.key_fact_snapshot)
-        restored = AgentEngine.restore(HexgentConfig(), self.root, self.session.store.session_id)
+        restored = AgentEngine.restore(MindWeaveHarnessConfig(), self.root, self.session.store.session_id)
         self.assertEqual(restored.context_manager.model_messages(), self.manager.model_messages())
 
     def test_atomic_replace_then_ordinary_append_and_sequence(self):
@@ -245,7 +245,7 @@ class RemediationTests(unittest.TestCase):
         self.assertEqual([r["sequence"] for r in events], list(range(1, len(events)+1)))
         self.assertEqual([r["type"] for r in events[-3:]], ["ordinary_before", "context_compaction_applied", "ordinary_after"])
         self.assertGreater(outcome.boundary["publication_metrics"]["temporary_bytes"], 0)
-        restored = AgentEngine.restore(HexgentConfig(), self.root, self.session.store.session_id)
+        restored = AgentEngine.restore(MindWeaveHarnessConfig(), self.root, self.session.store.session_id)
         self.assertEqual(restored.context_manager.key_fact_snapshot, self.manager.key_fact_snapshot)
 
     def test_extraction_input_cut_and_intent_partition(self):
@@ -265,7 +265,7 @@ class RemediationTests(unittest.TestCase):
 
     def test_fake_main_request_sees_production_snapshot_and_no_side_effect(self):
         outcome, _ = self.compact(commit=self.session.record_compaction)
-        config = HexgentConfig()
+        config = MindWeaveHarnessConfig()
         config = replace(config, context=self.limits,
                          context_extraction=replace(config.context_extraction, enabled=False))
         engine = AgentEngine(config, self.root, context_manager=self.manager, session=self.session)
@@ -280,7 +280,7 @@ class RemediationTests(unittest.TestCase):
         root = self.root / "actual-tool"
         root.mkdir()
         (root / "source.txt").write_text("；".join(FACTS) + "\n" + "历史业务资料。"*9000, encoding="utf-8")
-        config = HexgentConfig()
+        config = MindWeaveHarnessConfig()
         config = replace(config,
             context=replace(config.context, proactive_threshold_tokens=16000,
                             recent_context_tokens=100, reactive_recent_context_tokens=100),
@@ -383,7 +383,7 @@ class RemediationTests(unittest.TestCase):
 
     def test_full_budget_with_snapshot_refuses_main(self):
         self.compact(commit=self.session.record_compaction)
-        config = HexgentConfig()
+        config = MindWeaveHarnessConfig()
         config = replace(config, context=replace(config.context, context_window_tokens=100,
                                                   reserved_output_tokens=1, safety_margin_tokens=1,
                                                   proactive_threshold_tokens=98,
@@ -435,7 +435,7 @@ class RemediationTests(unittest.TestCase):
 
     def test_main_retry_keeps_snapshot_and_checks_actual_request(self):
         self.compact(commit=self.session.record_compaction)
-        config = HexgentConfig()
+        config = MindWeaveHarnessConfig()
         config = replace(config, context=self.limits,
                          context_extraction=replace(config.context_extraction, enabled=False))
         engine = AgentEngine(config, self.root, context_manager=self.manager, session=self.session)
@@ -469,7 +469,7 @@ class RemediationTests(unittest.TestCase):
         self.session.record_user_query(self.manager.user_queries[-1])
         outcome, _ = self.compact(commit=self.session.record_compaction)
         self.assertEqual(outcome.status, "compacted")
-        restored = AgentEngine.restore(HexgentConfig(), self.root, self.session.store.session_id)
+        restored = AgentEngine.restore(MindWeaveHarnessConfig(), self.root, self.session.store.session_id)
         self.assertEqual(restored.context_manager.key_fact_snapshot, self.manager.key_fact_snapshot)
 
     def test_previous_summary_is_not_new_supersede_evidence(self):

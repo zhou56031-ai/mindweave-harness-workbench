@@ -16,9 +16,9 @@ import sys
 from time import monotonic
 from typing import Iterator
 
-from hexgent.tool.tool_context import ToolExecutionContext
-from hexgent.tool.tool_registry import TOOL_REGISTRY
-from hexgent.tool.tool_result import ToolHandlerResult
+from mindweave_harness.tool.tool_context import ToolExecutionContext
+from mindweave_harness.tool.tool_registry import TOOL_REGISTRY
+from mindweave_harness.tool.tool_result import ToolHandlerResult
 
 
 PROFILE_NAME = "eval_restricted_bash_v1"

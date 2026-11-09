@@ -10,11 +10,11 @@ import subprocess
 import unittest
 from urllib.parse import urlsplit
 
-from hexgent.context import ContextLimits, ContextManager
-from hexgent.context.context_compaction import _select_cut_index, COMPACTION_INSTRUCTIONS
-from hexgent.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS, EXTRACTION_PROMPT_VERSION
-from hexgent.context.key_fact_snapshot import json_value
-from hexgent.utils.token_estimator import estimate_request_tokens
+from mindweave_harness.context import ContextLimits, ContextManager
+from mindweave_harness.context.context_compaction import _select_cut_index, COMPACTION_INSTRUCTIONS
+from mindweave_harness.context.key_fact_extractor import EXTRACTION_INSTRUCTIONS, EXTRACTION_PROMPT_VERSION
+from mindweave_harness.context.key_fact_snapshot import json_value
+from mindweave_harness.utils.token_estimator import estimate_request_tokens
 from tests.test_key_fact_remediation import RemediationTests
 
 
@@ -79,7 +79,7 @@ def cases():
 
 def preflight(output):
     import os
-    from hexgent.client import get_model
+    from mindweave_harness.client import get_model
     try:
         configured_model = get_model()
     except (KeyError, ValueError):
@@ -197,9 +197,9 @@ def main():
         save(output/"regressions.json", regressions)
     after = fingerprints()
     save(output/"frozen-after.json", after)
-    source = {str(p.relative_to(ROOT)): sha256(p.read_bytes()).hexdigest() for p in sorted((ROOT/"hexgent").rglob("*.py"))}
+    source = {str(p.relative_to(ROOT)): sha256(p.read_bytes()).hexdigest() for p in sorted((ROOT/"mindweave_harness").rglob("*.py"))}
     save(output/"production-after.json", source)
-    tracked = subprocess.check_output(["git","ls-files","hexgent"], cwd=ROOT, text=True).splitlines()
+    tracked = subprocess.check_output(["git","ls-files","mindweave_harness"], cwd=ROOT, text=True).splitlines()
     original = {p: sha256(subprocess.check_output(["git","show",f"HEAD:{p}"], cwd=ROOT)).hexdigest() for p in tracked if p.endswith(".py")}
     save(output/"production-head-before.json", original)
     old_manifest = json.loads((FINAL/"freeze_manifest.json").read_text())

@@ -23,7 +23,7 @@ from .verifier import Observation, VerificationInput
 
 def records(environment):
     result=[]
-    for path in (environment.workdir/'.hexgent/sessions').glob('*/transcript.jsonl'):
+    for path in (environment.workdir/'.mindweave_harness/sessions').glob('*/transcript.jsonl'):
         # 并发追加期间忽略尚未完整写入的最后一行；终态读取必须全部完整。
         if (environment.workdir/'.benchmark-control.json').exists():
             from .protocol_v2 import strict_jsonl

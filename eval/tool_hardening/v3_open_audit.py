@@ -10,12 +10,12 @@ from statistics import mean, median
 import subprocess
 import sys
 
-from hexgent.client import get_client, get_model
+from mindweave_harness.client import get_client, get_model
 from .v2_runner import ROOT, digest, stats
 from .v3_experiment import project, save, source_hashes
 from .v3_smoke import run_one
 
-QUERY = '请帮我审计一下 `hexgent/tool` 模块的设计'
+QUERY = '请帮我审计一下 `mindweave_harness/tool` 模块的设计'
 
 
 def manual_evidence(task, records, answer, workspace):
@@ -292,7 +292,7 @@ def main():
             'allowed_tools': 'full production registry; runtime exposure prerequisites unchanged',
             'permission': 'auto_approve; production hard denials preserved',
             'order': 'pair1 ON/OFF; pair2 OFF/ON; alternate', 'task_quality': 'manual review, no JSON output contract',
-            'budget': 'HexgentConfig defaults; both variants identical',
+            'budget': 'MindWeaveHarnessConfig defaults; both variants identical',
             'timing': 'both variants profiled; per-handler and event offsets saved; no causal E2E claim',
             'retries': 'no automatic run retry; SDK/Production existing retry policy unchanged', 'automatic_trace_replay': False,
             'count_failures': args.count_failures}

@@ -5,7 +5,7 @@ from collections import Counter
 import json
 from pathlib import Path
 
-from hexgent.client import get_client, get_model
+from mindweave_harness.client import get_client, get_model
 from .v3_smoke import TASKS, run_one
 from .v2_runner import ROOT, digest
 
@@ -20,7 +20,7 @@ def main():
     client = get_client()
     assert preflight["status"] == "PASS" and get_model() == preflight["model_id"]
     args.output_dir.mkdir(parents=True, exist_ok=False)
-    protected = {str(p.relative_to(ROOT)): digest(p) for base in ("hexgent", "tests") for p in (ROOT / base).rglob("*.py")}
+    protected = {str(p.relative_to(ROOT)): digest(p) for base in ("mindweave_harness", "tests") for p in (ROOT / base).rglob("*.py")}
     artifact = run_one(TASKS["tool_pipeline"], args.output_dir / "tool_pipeline" / "ON", True, client, protected)
     main_turns = [t for t in artifact["turns"] if t["request_type"] == "MAIN_AGENT"]
     unexpected_provider = [t["turn_id"] for t in artifact["turns"] if t["status"] not in {"SUCCEEDED", "CANCELLED", "TIMEOUT"}]

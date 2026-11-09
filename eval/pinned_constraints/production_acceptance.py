@@ -6,9 +6,9 @@ import json
 from pathlib import Path
 import unittest
 
-from hexgent.agent_engine import AgentEngine
-from hexgent.config import HexgentConfig
-from hexgent.session.pinned_constraints import replay_constraints
+from mindweave_harness.agent_engine import AgentEngine
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.session.pinned_constraints import replay_constraints
 
 
 def save(path, value):
@@ -17,7 +17,7 @@ def save(path, value):
 
 def hashes(root):
     return {p.relative_to(root).as_posix(): sha256(p.read_bytes()).hexdigest()
-            for p in sorted((root / "hexgent").rglob("*.py"))}
+            for p in sorted((root / "mindweave_harness").rglob("*.py"))}
 
 
 class ProductionAcceptance(unittest.TestCase):
@@ -26,7 +26,7 @@ class ProductionAcceptance(unittest.TestCase):
     def setUp(self):
         self.case = self.output / self._testMethodName
         self.case.mkdir()
-        self.engine = AgentEngine(HexgentConfig(), self.case / "workspace")
+        self.engine = AgentEngine(MindWeaveHarnessConfig(), self.case / "workspace")
         self.actions = []
 
     def command(self, action, command_id, **arguments):

@@ -68,7 +68,7 @@ FEASIBILITY_TASKS: tuple[TaskSpecification, ...] = (
         "project-workflow", ("glob", "read_file", "write_file", "create_plan", "update_plan"),
         ("project-state.json", "handoff.md"), ("README.md", "config/release-policy.json"),
         "Stage B 输出、文件 diff 与已资格化的 Stage A ContextRecord 必须同时满足。",
-        ("project-state.json", "handoff.md", ".hexgent/sessions"), "context_record_pair",
+        ("project-state.json", "handoff.md", ".mindweave_harness/sessions"), "context_record_pair",
         "Stage A 使用 Production extraction；只有 active、有 provenance、与 Stage B 相关且不含最终答案的 record 才能冻结为 Stage B baseline。",
     ),
 )

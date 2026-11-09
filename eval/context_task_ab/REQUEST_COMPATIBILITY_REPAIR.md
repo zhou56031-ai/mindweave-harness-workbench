@@ -5,7 +5,7 @@ IS1真实Smoke第4次MAIN请求收到HTTP 400：Unknown parameter: input[1].stat
 ContextManager.model_messages→materialize_messages→_request_message把SDK响应对象完整model_dump为请求条目，回传了reasoning.status。当前SDK输入类型允许省略该字段，但现有Provider拒绝此次回传；不将此行为泛化为所有Responses Provider的要求。
 
 ## 最小修复
-仅修改hexgent/context/context_manager.py的请求副本物化：顶层reasoning条目省略status；保留id、summary、encrypted_content及其他内容。非reasoning条目、嵌套业务字段、Call ID及Tool Result状态不变。
+仅修改mindweave_harness/context/context_manager.py的请求副本物化：顶层reasoning条目省略status；保留id、summary、encrypted_content及其他内容。非reasoning条目、嵌套业务字段、Call ID及Tool Result状态不变。
 原始活动历史、Transcript、Checkpoint不改写。正常请求、摘要/Extractor历史物化以及正式Restore后请求复用同一边界。原有logprobs=null→[]兼容行为保留。
 
 ## 离线证据

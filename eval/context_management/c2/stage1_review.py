@@ -12,7 +12,7 @@ import unittest
 
 from eval.context_management.c1_independent import save,hashes
 from eval.context_management.c2_prep_3.prepare import read_json,digest
-from hexgent.utils.token_estimator import estimate_request_tokens
+from mindweave_harness.utils.token_estimator import estimate_request_tokens
 
 
 def main():

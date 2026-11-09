@@ -12,7 +12,7 @@ ROOT=Path(__file__).resolve().parents[4]
 sys.path.insert(0,str(ROOT))
 from eval.context_remediation_v1.offline import save,fingerprints
 from eval.context_remediation_v1.factorial_pilot import file_hashes
-from hexgent.context.key_fact_snapshot import validate_snapshot
+from mindweave_harness.context.key_fact_snapshot import validate_snapshot
 
 
 def main():
@@ -34,7 +34,7 @@ def main():
         ("Stability-SP-R1",stability/"responses/SP-R1",stability/"snapshots/SP-R1.json",0,["f1","f2"])]
     roots=[pilot,p10,p11,sparse,stability,ROOT/"eval/context_remediation_v1/reviews/factorial-combined-20261012T074921192596Z"]
     preserved={str(p):file_hashes(p) for p in roots}
-    prod={str(p.relative_to(ROOT)):sha256(p.read_bytes()).hexdigest() for p in sorted((ROOT/"hexgent").rglob("*.py"))}
+    prod={str(p.relative_to(ROOT)):sha256(p.read_bytes()).hexdigest() for p in sorted((ROOT/"mindweave_harness").rglob("*.py"))}
     freeze=fingerprints()
     rules="""# 统一来源充分性规则（本次独立审计，旧合同不改）\n\n先核对Pilot quality-rules、Sparse quality_rules、Stability quality_contract，均要求各Fact充分支持。\nA Source Validity只核对Schema、身份、前缀/切点；B Full-Prefix Support核对整个合法历史；C只用该Fact自己声明的refs。A/B/C独立。\n对复合fact逐子命题审核。全称/范围须证明集合、覆盖、每项属性、有效时间；已有权威范围汇总可替代逐条引用，不按引用数量机械判定。\n没有权威汇总时，端点个案不能代表中间项目；其他facts的refs并集不能自动补证。\n“上述工作项”的指代由前面完整列举与正文解析，不因没写1—30而放行。\n“整个前缀没有某证据”是集合级否定命题，不能仅靠几个案例的免责声明证明所有其他消息都没有；引用需范围性索引/汇总或完整支持链。\n“已有证据主要是某类型”是比例/范围概括，几个例子不证明整体主要构成；不能事后把整个范围收窄成仅refs所指样例来制造PASS。\n“仅基于这些阅读记录不能推出测试PASS”是局部推理界限，可以由这些记录支持；不等于“整个历史没有测试证据”。\n来源明确当前有效的待确认状态可以保留到切点，需独立检查后续是否更正；这不同于对整个前缀证据集合做缺失性断言。\n唯一性只有在来源自身支持“唯一”或有排他性范围证据时成立。旧状态已废止是当前有效的元事实，不把旧状态激活。\n跨调用/结果的文件主体身份需覆盖对应参数与结果；用户明确只读可支持不作业务变更这一等价限定，不要求字面完全一致。\n没有明确支持时用UNCERTAIN，不默认PASS；有完整前缀支持而自身ref不足记REFERENCE_GAP。OVERGENERALIZATION可与其重叠，但按唯一(run,fact)计数，不双加。\n本次操作化是统一复核，发现历史差异只记HISTORICAL_AUDIT_DISCREPANCY，绝不改旧Gate。\n"""
     (output/"reference_sufficiency_rules.md").write_text(rules,encoding="utf-8")

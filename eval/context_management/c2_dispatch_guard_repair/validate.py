@@ -41,7 +41,7 @@ def main():
         stack.enter_context(patch.dict(os.environ,{},clear=True))
         stack.enter_context(patch.object(socket.socket,'connect',denied_network))
         stack.enter_context(patch('socket.create_connection',denied_network))
-        stack.enter_context(patch('hexgent.client.get_client',side_effect=AssertionError('本轮禁止凭证入口')))
+        stack.enter_context(patch('mindweave_harness.client.get_client',side_effect=AssertionError('本轮禁止凭证入口')))
         # 1. 重新运行原缺陷，而不是引用历史 PASS/FAIL。
         prior=output/'before';prior.mkdir();before_probe=probe(prior);save(DEST/'before_probe.json',before_probe)
         afterdir=output/'after';afterdir.mkdir();r=Rig(afterdir)

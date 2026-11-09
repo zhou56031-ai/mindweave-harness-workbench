@@ -7,11 +7,11 @@ from types import SimpleNamespace
 import unittest
 
 from openai.types.responses import ResponseReasoningItem
-from hexgent.agent_engine import AgentEngine,RunRequest
-from hexgent.config import HexgentConfig
-from hexgent.context import ContextManager
-from hexgent.events import ToolFinishedEvent
-from hexgent.run_control import RunControl
+from mindweave_harness.agent_engine import AgentEngine,RunRequest
+from mindweave_harness.config import MindWeaveHarnessConfig
+from mindweave_harness.context import ContextManager
+from mindweave_harness.events import ToolFinishedEvent
+from mindweave_harness.run_control import RunControl
 from eval.context_management.c1_independent import response
 from eval.support.agent_contracts import tool_call
 
@@ -43,7 +43,7 @@ class RequestReasoningCompatibilityTests(unittest.TestCase):
     def run_path(self,pause):
         with TemporaryDirectory() as root:
             work=Path(root);(work/'source.txt').write_text('唯一事实：MAPLE-31')
-            base=HexgentConfig();cfg=replace(base,context_extraction=replace(base.context_extraction,enabled=False),
+            base=MindWeaveHarnessConfig();cfg=replace(base,context_extraction=replace(base.context_extraction,enabled=False),
                 context_retrieval=replace(base.context_retrieval,enabled=False),memory_retrieval=replace(base.memory_retrieval,enabled=False))
             engine=AgentEngine(cfg,work);requests=[]
             reasoning=ResponseReasoningItem(id='rs-compat',summary=[],type='reasoning',status=None,encrypted_content='opaque-fixture')

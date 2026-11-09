@@ -10,10 +10,10 @@ Production 修改仅四个文件，57行新增/3行删除（不含新增测试�
 
 | 位置 | 修改 |
 | --- | --- |
-| hexgent/session/session.py::reselect_context_records | 使用当前 active_records、原词法 Retriever、原 limits/fallback重新选择；结果改变时沿用已有 retrieval事件，不新增状态系统/磁盘重载 |
-| hexgent/agent_engine.py::_build_run_state | 正式 Continue 按当前最新用户Query重新选择Record；保留原 Memory复核，不改其生命周期 |
-| hexgent/loop/agent_turn.py::run_turn | 预算组装前刷新缓存；每次发送前复用原 Builder/注入预算重新组装，更新后续Checkpoint所用状态 |
-| hexgent/loop/call_model.py::call_model | 可选prepare_request回调在实际发送及Runtime空流重试前执行；无回调的辅助调用保持原逻辑；Memory request_guard仍在最终发送外层 |
+| mindweave_harness/session/session.py::reselect_context_records | 使用当前 active_records、原词法 Retriever、原 limits/fallback重新选择；结果改变时沿用已有 retrieval事件，不新增状态系统/磁盘重载 |
+| mindweave_harness/agent_engine.py::_build_run_state | 正式 Continue 按当前最新用户Query重新选择Record；保留原 Memory复核，不改其生命周期 |
+| mindweave_harness/loop/agent_turn.py::run_turn | 预算组装前刷新缓存；每次发送前复用原 Builder/注入预算重新组装，更新后续Checkpoint所用状态 |
+| mindweave_harness/loop/call_model.py::call_model | 可选prepare_request回调在实际发送及Runtime空流重试前执行；无回调的辅助调用保持原逻辑；Memory request_guard仍在最终发送外层 |
 
 不修改 Checkpoint schema/已有文件，不清空全部记录、不新增Session/submit、不用Prompt绕过旧事实，不修改历史或Summary。
 当前有效新事实B通过原Retrieval规则正常参与选择；不是仅过滤A。
