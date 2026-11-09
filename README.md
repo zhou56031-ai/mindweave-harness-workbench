@@ -144,7 +144,7 @@ flowchart TB
 **前置**：Docker、Node 20+、Python 3.12。
 
 ```bash
-git clone <你的仓库地址>
+git clone https://github.com/zhou56031-ai/mindweave-harness-workbench.git
 cd mindweave-harness-workbench/workbench/mindweave
 
 # 1) 数据库（MySQL / Redis / Neo4j）
