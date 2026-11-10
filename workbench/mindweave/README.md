@@ -18,9 +18,9 @@
   <img src="https://img.shields.io/badge/License-MIT-3DA639?style=for-the-badge&logo=opensourceinitiative&logoColor=white" alt="License">
 </p>
 
-> 本项目在 MIT 开源项目 [RMA-MUN/RAGNotebook](https://github.com/RMA-MUN/RAGNotebook) 的基础上二次开发：
-> 业务骨架与前端沿用上游，**对话编排、检索融合、上下文治理、请求级观测与界面设计**做了重写。
-> 上游版权与许可见 [LICENSE](./LICENSE)。
+> 本项目基于我的另一个项目 [MindWeave](https://github.com/zhou56031-ai/MindWeave) 演进：
+> 业务骨架与前端沿用 MindWeave，**对话编排、检索融合、上下文治理、请求级观测与界面设计**做了重写。
+> 许可见 [LICENSE](./LICENSE)。
 
 ---
 
@@ -673,9 +673,7 @@ AutoRAG 的结论被固化成默认值：混合权重 30、`top_k=5`、重排 8�
 
 ## 致谢与许可
 
-- 本项目基于 [RMA-MUN/RAGNotebook](https://github.com/RMA-MUN/RAGNotebook)（MIT）二次开发，前端沿用其源码，版权归原作者所有。
-- 上游 README、项目结构与设计思路是很好的学习材料，建议对照阅读。
-- 本项目同样以 [MIT](./LICENSE) 协议开源。
+- 本项目基于我的另一个项目 [MindWeave](https://github.com/zhou56031-ai/MindWeave) 演进，并以 [MIT](./LICENSE) 协议开源。
 
 ---
 
