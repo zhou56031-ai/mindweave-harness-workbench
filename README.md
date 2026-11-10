@@ -402,7 +402,6 @@ cd workbench/mindweave/front && npx tsc --noEmit && npx vite build
 ## 致谢与许可
 
 - 工作台基于我的另一个项目 [MindWeave](https://github.com/zhou56031-ai/MindWeave) 演进，见 [LICENSE](workbench/mindweave/LICENSE)；
-- 运行时、检索评测、Benchmark 为本项目实现。
 
 <div align="center">
 
